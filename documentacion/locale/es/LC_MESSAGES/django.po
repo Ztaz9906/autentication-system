@@ -1,0 +1,74 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2023-04-02 01:41+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# UI 
+msgid "Number of results to return per page."
+msgstr "Número de resultados a retornar por página."
+
+msgid "The initial index from which to return the results."
+msgstr "El índice incial desde el cuál se retornarán los resultados."
+
+msgid "Select a definition"
+msgstr "Seleccione una versión"
+
+msgid "Example"
+msgstr "Ejemplo"
+
+msgid "Media type"
+msgstr "Formato" 
+
+msgid "Code"
+msgstr "Código"
+
+msgid "Links"
+msgstr "Enlaces"
+
+msgid "No links"
+msgstr "Sin enlaces"
+
+msgid "Responses"
+msgstr "Respuestas"
+
+msgid "Authorize"
+msgstr "Autorizar"
+
+msgid "Example Value"
+msgstr "Valor de ejemplo"
+
+msgid "Controls Accept Header"
+msgstr "Los controles aceptan encabezado*"
+
+msgid "Parameters"
+msgstr "Parámetros"
+
+msgid "schema"
+msgstr "esquema"
+
+msgid "Request body"
+msgstr "Cuerpo de la petición"
+
+msgid "A unique integer value identifying this"
+msgstr "Un valor entero único para identificar este(a)"
+
+msgid "Available values"
+msgstr "Posibles valores"
+
+msgid "type"
+msgstr "tipo"
