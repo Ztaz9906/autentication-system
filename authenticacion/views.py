@@ -111,6 +111,12 @@ class CustomPasswordResetView(PasswordResetView):
     serializer_class = CustomPasswordResetSerializer
 
 
+@extend_schema_view(
+    post=extend_schema(
+        tags=["Autenticación"],
+        description="Inicia la sesión para el usuario con su cuenta de google.",
+    )
+)
 class GoogleLogin(SocialLoginView):
     """Clase usada para la autenticacion por google"""
     adapter_class = GoogleOAuth2Adapter
