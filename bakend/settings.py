@@ -25,7 +25,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-ib20h(eg8u^ry!u+v8n
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['autentication-system.vercel.app']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
