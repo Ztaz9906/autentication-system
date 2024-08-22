@@ -141,8 +141,12 @@ SIMPLE_JWT = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',  # Nombre de la base de datos proporcionado por Supabase
+        'USER': 'postgres.thxforejpniauxqpsbnd',  # Usuario de la base de datos proporcionado por Supabase
+        'PASSWORD': 'Qwertyztaz.99*',  # Contraseña de la base de datos proporcionada por Supabase
+        'HOST': 'aws-0-us-west-1.pooler.supabase.com',  # URL de la base de datos proporcionada por Supabase
+        'PORT': '6543',  # Puerto de conexión (por defecto para PostgreSQL)
     }
 }
 
