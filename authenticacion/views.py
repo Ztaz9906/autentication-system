@@ -1,5 +1,8 @@
+from rest_framework.views import APIView
+
 from authenticacion.models import Usuario, Group
-from authenticacion.serializers import SerializadorUsuarioLectura, SerializadorDeUsuarioEscritura, SerializadorDeGrupos, SerializadorDeGruposLectura, CustomPasswordResetSerializer
+from authenticacion.serializers import SerializadorUsuarioLectura, SerializadorDeUsuarioEscritura, SerializadorDeGrupos, \
+    SerializadorDeGruposLectura, CustomPasswordResetSerializer, LogoutSerializer
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import permissions, viewsets
 from django_filters import rest_framework as filters
@@ -88,7 +91,7 @@ class CustomLoginView(LoginView):
     ),
     get=extend_schema(
         tags=["Autenticación"],
-        request=None,
+        request=LogoutSerializer,
         responses=None,
         description="Confirma el proceso de borrado de la sesión del usuario actual",
         deprecated=True,
@@ -96,6 +99,7 @@ class CustomLoginView(LoginView):
 )
 class CustomLogoutView(LogoutView):
     """Borra el token y la sesión asignada al usuario actual."""
+
     ...
 
 

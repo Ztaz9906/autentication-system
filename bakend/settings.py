@@ -25,7 +25,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-ib20h(eg8u^ry!u+v8n
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['.vercel.app', '.now.sh', '127.0.0.1']
 
 
 # Application definition
@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     'documentacion',
     'authenticacion',
+    'tienda'
 ]
 AUTH_USER_MODEL = 'authenticacion.Usuario'
 
@@ -83,7 +84,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'bakend.wsgi.application'
+WSGI_APPLICATION = 'bakend.wsgi.app'
 
 AUTHENTICATION_BACKENDS = [
     # Needed to login by username in Django admin, regardless of `allauth`
@@ -184,6 +185,8 @@ LOCALE_PATHS = (BASE_DIR / "apps/documentacion/locale",)
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
+STATICFILES_DIRS = [BASE_DIR/'static',]
+
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 STATIC_HOST = os.getenv("DJANGO_STATIC_HOST", "")
@@ -198,3 +201,4 @@ MEDIA_URL = STATIC_HOST + "/media/"
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+

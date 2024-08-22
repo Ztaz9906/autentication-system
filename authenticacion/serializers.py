@@ -5,6 +5,9 @@ from django.contrib.auth.models import Permission
 from dj_rest_auth.serializers import PasswordResetSerializer
 
 
+class LogoutSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField(help_text="El token de actualización que debe deshabilitarse")
+
 @extend_schema_serializer(component_name="SerializadorDePermisos")
 class SerializadorDePermisos(serializers.ModelSerializer):
     """Clase encargada de serializar y deserializar los permisos."""
