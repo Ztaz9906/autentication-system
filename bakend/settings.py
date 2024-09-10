@@ -12,10 +12,10 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 import os
 from pathlib import Path
 from datetime import timedelta
+import stripe
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -25,8 +25,7 @@ SECRET_KEY = 'django-insecure-ib20h(eg8u^ry!u+v8n&(r6w&v*bed6)f7aw7sg%h5)qa-x(y4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['.vercel.app', '.now.sh', '127.0.0.1']
-
+ALLOWED_HOSTS = ['.vercel.app', '.now.sh', '127.0.0.1','*']
 
 # Application definition
 
@@ -102,7 +101,6 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-
 SPECTACULAR_SETTINGS = {
     "TITLE": "SIGA API",
     "DESCRIPTION": "Breve documentación asociada al API de SIGA.",
@@ -143,13 +141,12 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'postgres',  # Nombre de la base de datos proporcionado por Supabase
-        'USER': 'postgres.thxforejpniauxqpsbnd',  # Usuario de la base de datos proporcionado por Supabase
-        'PASSWORD': 'Qwertyztaz.99*',  # Contraseña de la base de datos proporcionada por Supabase
-        'HOST': 'aws-0-us-west-1.pooler.supabase.com',  # URL de la base de datos proporcionada por Supabase
+        'USER': 'postgres.qglhcroekegjvwlekwiz',  # Usuario de la base de datos proporcionado por Supabase
+        'PASSWORD': 'c0geqoMHNPzgZqTt',  # Contraseña de la base de datos proporcionada por Supabase
+        'HOST': 'aws-0-us-east-1.pooler.supabase.com',  # URL de la base de datos proporcionada por Supabase
         'PORT': '6543',  # Puerto de conexión (por defecto para PostgreSQL)
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -171,8 +168,6 @@ AUTH_PASSWORD_VALIDATORS = [
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
@@ -189,7 +184,7 @@ LOCALE_PATHS = (BASE_DIR / "apps/documentacion/locale",)
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATICFILES_DIRS = [BASE_DIR/'static',]
+STATICFILES_DIRS = [BASE_DIR / 'static', ]
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
@@ -206,3 +201,7 @@ MEDIA_URL = STATIC_HOST + "/media/"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Stripe
+STRIPE_SECRET_KEY = 'tu_sk_test_51PQbzPGkiwqRm16CSYV3zip8aDpQd6HYR6xagymesVarWWOh9BiMS8PraFFI5STwxv0wwmomqxpSI2a3hG5khhLt00cboMxa7Z'
+STRIPE_WEBHOOK_SECRET = 'whsec_maFNLc45V6HVLCS013lCxHG6r8DoIWqn'
+stripe.api_key = STRIPE_SECRET_KEY
