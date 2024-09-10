@@ -42,7 +42,7 @@ class PedidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pedido
         fields = ['id', 'usuario', 'total', 'direccion_envio', 'estado', 'stripe_payment_intent_id', 'created_at',
-                  'updated_at']
+                  'updated_at','productos']
 
 
 class PedidoDetailSerializer(serializers.ModelSerializer):

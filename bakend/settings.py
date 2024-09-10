@@ -86,10 +86,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'bakend.wsgi.app'
 
 AUTHENTICATION_BACKENDS = [
-    # Needed to log in by username in Django admin, regardless of `allauth`
-    'django.contrib.auth.backends.ModelBackend',
-    # `allauth` specific authentication methods, such as login by email
-    'allauth.account.auth_backends.AuthenticationBackend',
+    'authenticacion.auth.EmailOrUsernameModelBackend',
 ]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -202,6 +199,6 @@ MEDIA_URL = STATIC_HOST + "/media/"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Stripe
-STRIPE_SECRET_KEY = 'tu_sk_test_51PQbzPGkiwqRm16CSYV3zip8aDpQd6HYR6xagymesVarWWOh9BiMS8PraFFI5STwxv0wwmomqxpSI2a3hG5khhLt00cboMxa7Z'
+STRIPE_SECRET_KEY = 'sk_test_51PQbzPGkiwqRm16CSYV3zip8aDpQd6HYR6xagymesVarWWOh9BiMS8PraFFI5STwxv0wwmomqxpSI2a3hG5khhLt00cboMxa7Z'
 STRIPE_WEBHOOK_SECRET = 'whsec_maFNLc45V6HVLCS013lCxHG6r8DoIWqn'
 stripe.api_key = STRIPE_SECRET_KEY

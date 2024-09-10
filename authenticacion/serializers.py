@@ -3,10 +3,53 @@ from authenticacion.models import Usuario, Group
 from drf_spectacular.utils import extend_schema_serializer, OpenApiExample
 from django.contrib.auth.models import Permission
 from dj_rest_auth.serializers import PasswordResetSerializer
+from django.contrib.auth import get_user_model
+
+
+class CustomLoginSerializer(serializers.Serializer):
+    username = serializers.CharField(required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    password = serializers.CharField(style={'input_type': 'password'})
+
+    def validate(self, attrs):
+        username = attrs.get('username')
+        email = attrs.get('email')
+        password = attrs.get('password')
+
+        if not (username or email):
+            msg = 'Debe proporcionar "username" o "email".'
+            raise serializers.ValidationError(msg, code='authorization')
+
+        if not password:
+            msg = 'Debe proporcionar "password".'
+            raise serializers.ValidationError(msg, code='authorization')
+
+        user = None
+        user_model = get_user_model()
+
+        if username:
+            try:
+                user = user_model.objects.get(username=username)
+            except user_model.DoesNotExist:
+                pass
+
+        if not user and email:
+            try:
+                user = user_model.objects.get(email=email)
+            except user_model.DoesNotExist:
+                pass
+
+        if user and user.check_password(password):
+            attrs['user'] = user
+            return attrs
+
+        msg = 'No se puede iniciar sesión con las credenciales proporcionadas.'
+        raise serializers.ValidationError(msg, code='authorization')
 
 
 class LogoutSerializer(serializers.Serializer):
     refresh_token = serializers.CharField(help_text="El token de actualización que debe deshabilitarse")
+
 
 @extend_schema_serializer(component_name="SerializadorDePermisos")
 class SerializadorDePermisos(serializers.ModelSerializer):
@@ -51,6 +94,7 @@ class SerializadorUsuarioLectura(serializers.ModelSerializer):
             "is_staff",
             "groups",
             "user_permissions",
+            'customer_id'
         ]
 
 

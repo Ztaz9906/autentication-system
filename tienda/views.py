@@ -90,7 +90,7 @@ class StripeWebhookView(APIView):
                 description=stripe_product.get('description', ''),
                 active=stripe_product['active'],
                 metadata=stripe_product.get('metadata', {}),
-                image=stripe_product.get('images', [None])[0]
+                image=stripe_product.get('images', [None])[0] if stripe_product.get('images') else None
             )
             logger.info(f"Created new product: {producto.name}")
         except Exception as e:
@@ -118,7 +118,7 @@ class StripeWebhookView(APIView):
                 producto.metadata = stripe_product.get('metadata', {})
                 updated_fields.append('metadata')
 
-            image = stripe_product.get('images', [None])[0]
+            image = stripe_product.get('images', [None])[0] if stripe_product.get('images') else None
             if producto.image != image:
                 producto.image = image
                 updated_fields.append('image')
@@ -136,9 +136,17 @@ class StripeWebhookView(APIView):
             logger.error(f"Error updating product: {str(e)}")
             raise
 
+
     def handle_price_created(self, stripe_price):
         try:
-            producto = Producto.objects.get(stripe_product_id=stripe_price['product'])
+            producto, created = Producto.objects.get_or_create(
+                stripe_product_id=stripe_price['product'],
+                defaults={
+                    'name': 'Producto pendiente de actualización',
+                    'active': True
+                }
+            )
+
             precio = Precio.objects.create(
                 stripe_price_id=stripe_price['id'],
                 producto=producto,
@@ -149,15 +157,16 @@ class StripeWebhookView(APIView):
             )
             logger.info(f"Created new price: {precio.stripe_price_id} for product: {producto.name}")
 
+            if created:
+                logger.warning(f"Created placeholder product for price: {stripe_price['id']}")
+
             # Actualizar el precio por defecto si es necesario
-            if not producto.default_price or stripe_price.get('default_price', 'false').lower() == 'true':
+            if not producto.default_price or stripe_price.get('metadata', {}).get('default_price',
+                                                                                  'false').lower() == 'true':
                 producto.default_price = precio
                 producto.save(update_fields=['default_price'])
                 logger.info(f"Set new default price for product: {producto.name}")
 
-        except Producto.DoesNotExist:
-            logger.error(f"Product not found for price: {stripe_price['id']}")
-            raise
         except Exception as e:
             logger.error(f"Error creating price: {str(e)}")
             raise

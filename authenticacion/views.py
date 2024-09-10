@@ -1,16 +1,20 @@
 from rest_framework.views import APIView
 
 from authenticacion.models import Usuario, Group
-from authenticacion.serializers import SerializadorUsuarioLectura, SerializadorDeUsuarioEscritura, SerializadorDeGrupos, \
-    SerializadorDeGruposLectura, CustomPasswordResetSerializer, LogoutSerializer
+from authenticacion.serializers import SerializadorUsuarioLectura, SerializadorDeUsuarioEscritura, SerializadorDeGrupos, SerializadorDeGruposLectura, CustomPasswordResetSerializer, LogoutSerializer, CustomLoginSerializer
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, viewsets, status
 from django_filters import rest_framework as filters
 from dj_rest_auth.views import LoginView, LogoutView, PasswordResetView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
+from rest_framework.response import Response
+import stripe
+from django.conf import settings
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
+print(f"Stripe API Key: {stripe.api_key}")
 @extend_schema_view(
     create=extend_schema(tags=["Administración"], description="Crea un grupo"),
     retrieve=extend_schema(
@@ -63,12 +67,38 @@ class VistasDeGrupos(viewsets.ModelViewSet):
 class VistasDeUsuarios(viewsets.ModelViewSet):
     """Lee y actualiza los usuarios."""
     queryset = Usuario.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return SerializadorUsuarioLectura
         return SerializadorDeUsuarioEscritura
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Crear el usuario en Django
+        user = serializer.save()
+
+        try:
+            # Crear el cliente en Stripe
+            print("Intentando crear cliente en Stripe...")
+            stripe_customer = stripe.Customer.create(
+                email=user.email,
+                name=f"{user.first_name} {user.last_name}"
+            )
+
+            # Guardar el ID del cliente de Stripe en el modelo de usuario
+            user.customer_id = stripe_customer.id
+            user.save()
+
+        except stripe.error.StripeError as e:
+            # Si hay un error al crear el cliente en Stripe, eliminar el usuario de Django
+            user.delete()
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 @extend_schema_view(
         post=extend_schema(
@@ -80,7 +110,7 @@ class CustomLoginView(LoginView):
     f"""Comprueba las credenciales y retorna el token apropiado si
     las credenciales son válidas, además habilita una sesión para el usuario.
     """
-    ...
+    serializer_class = CustomLoginSerializer
 
 
 @extend_schema_view(

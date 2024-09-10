@@ -14,7 +14,7 @@ urlpatterns = [
     path("logout/", CustomLogoutView.as_view(), name="api-logout"),
     path("change_password", PasswordChangeView.as_view()),
     path("reset_password", CustomPasswordResetView.as_view()),
-    path("reset_password_confirm", PasswordResetConfirmView.as_view()),
+    path("reset_password_confirm", PasswordResetConfirmView.as_view(), name="reset_password_confirm"),
     path("token/verify/", TokenVerifyView.as_view(), name="token-verify"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("", include(router.urls)),
