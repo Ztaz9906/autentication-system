@@ -50,6 +50,8 @@ class CustomLoginSerializer(serializers.Serializer):
 class LogoutSerializer(serializers.Serializer):
     refresh_token = serializers.CharField(help_text="El token de actualización que debe deshabilitarse")
 
+    class Meta:
+        fields = ['refresh_token']
 
 @extend_schema_serializer(component_name="SerializadorDePermisos")
 class SerializadorDePermisos(serializers.ModelSerializer):
@@ -77,6 +79,7 @@ class SerializadorDeGrupos(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = ["id", "name", "permissions"]
+
 
 class SerializadorUsuarioLectura(serializers.ModelSerializer):
     """Clase base utilizada en la serialización/deserialización de los usuarios."""
@@ -143,6 +146,7 @@ class SerializadorUsuarioAuth(serializers.ModelSerializer):
             "last_name",
             "is_staff",
             "groups",
+            'customer_id'
         ]
 
 

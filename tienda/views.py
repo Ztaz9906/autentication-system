@@ -2,35 +2,181 @@ import stripe
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, permissions, status
-from rest_framework.views import APIView
+from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from .models import Pedido, Producto, Precio
 from .serializers import (
     PedidoSerializer,
     PedidoDetailSerializer,
     ProductoSerializer,
-    ProductoDetailSerializer,
+    ProductoDetailSerializer, CreatePedidoSerializer, UpdatePedidoSerializer,
 )
 import logging
-
-stripe.api_key = settings.STRIPE_SECRET_KEY
+from datetime import datetime, timedelta
+from rest_framework.decorators import action
+from django.db import transaction
+from drf_spectacular.utils import extend_schema, extend_schema_view
 logger = logging.getLogger(__name__)
 
-
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Pedidos"],
+        description="Lista todos los pedidos del usuario o todos los pedidos si es admin"
+    ),
+    create=extend_schema(
+        tags=["Pedidos"],
+        description="Crea un nuevo pedido"
+    ),
+    retrieve=extend_schema(
+        tags=["Pedidos"],
+        description="Obtiene los detalles de un pedido específico"
+    ),
+    update=extend_schema(exclude=True),
+    partial_update=extend_schema(
+        tags=["Pedidos"],
+        description="Actualiza parcialmente un pedido"
+    ),
+    destroy=extend_schema(
+        tags=["Pedidos"],
+        description="Elimina un pedido"
+    ),
+)
 class PedidoViewSet(viewsets.ModelViewSet):
     queryset = Pedido.objects.all()
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
-    def get_serializer_class(self):
-        if self.action == 'retrieve':
+    def get_serializer_class(self, *args, **kwargs):
+        if self.action == 'create':
+            return CreatePedidoSerializer
+        elif self.action == 'retrieve' or self.action == 'list':
             return PedidoDetailSerializer
+        elif self.action == 'partial_update':
+            return UpdatePedidoSerializer
         return PedidoSerializer
 
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Pedido.objects.all()
+        return Pedido.objects.filter(usuario=user)
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            pedido = serializer.save()
+
+            line_items = []
+            for producto in serializer.validated_data['productos']:
+                line_items.append({
+                    'price': producto['price'],
+                    'quantity': producto['quantity']
+                })
+
+            try:
+                checkout_session = stripe.checkout.Session.create(
+                    customer=serializer.validated_data['customer_id'],
+                    payment_method_types=['card'],
+                    line_items=line_items,
+                    mode='payment',
+                    success_url=serializer.validated_data['success_url'],
+                    cancel_url=serializer.validated_data['cancel_url'],
+                    metadata={'pedido_id': pedido.id},
+                    expires_at=int((datetime.now() + timedelta(minutes=30)).timestamp())
+                )
+                pedido.checkout_session_url = checkout_session.url
+                pedido.checkout_session_success_url = checkout_session.success_url
+                pedido.checkout_session_cancel_url = checkout_session.cancel_url
+                pedido.stripe_checkout_session_id = checkout_session.id
+                pedido.save()
+
+                return Response({
+                    'checkout_url': checkout_session.url,
+                    'pedido_id': pedido.id
+                }, status=status.HTTP_201_CREATED)
+
+            except stripe.error.StripeError as e:
+                pedido.delete()  # Eliminar el pedido si hay un error con Stripe
+                return Response({
+                    'error': str(e)
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @transaction.atomic
+    def partial_update(self, request, *args, **kwargs):
+        pedido = self.get_object()
+        serializer = self.get_serializer(pedido, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(PedidoDetailSerializer(pedido).data)
+
+    def perform_update(self, serializer):
+        serializer.save()
+
+    @extend_schema(
+        tags=["Pedidos"],
+        description="Retoma el proceso de checkout para un pedido pendiente"
+    )
+    @action(detail=True, methods=['get'])
+    def retomar_checkout(self, request, pk=None):
+        pedido = self.get_object()
+
+        if pedido.estado != 'pendiente':
+            return Response({'error': 'Este pedido no está pendiente de pago'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            checkout_session = stripe.checkout.Session.retrieve(pedido.stripe_checkout_session_id)
+
+            if checkout_session.status == 'open':
+                return Response({'checkout_url': pedido.checkout_session_url})
+            elif checkout_session.status == 'expired':
+                # Crear una nueva sesión
+                new_checkout_session = stripe.checkout.Session.create(
+                    customer=pedido.usuario.customer_id,
+                    payment_method_types=['card'],
+                    line_items=[{
+                        'price': detalle.precio.stripe_price_id,
+                        'quantity': detalle.cantidad
+                    } for detalle in pedido.detallepedido_set.all()],
+                    mode='payment',
+                    success_url=checkout_session.success_url,
+                    cancel_url=checkout_session.cancel_url,
+                    metadata={'pedido_id': pedido.id},
+                    expires_at=int((datetime.now() + timedelta(minutes=30)).timestamp())
+                )
+                pedido.checkout_session_url = new_checkout_session.url
+                pedido.stripe_checkout_session_id = new_checkout_session.id
+                pedido.save()
+                return Response({'checkout_url': new_checkout_session.url})
+            else:
+                return Response({'error': 'La sesión de pago no está disponible'}, status=status.HTTP_400_BAD_REQUEST)
+
+        except stripe.error.StripeError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Productos"],
+        description="Lista todos los productos"
+    ),
+    retrieve=extend_schema(
+        tags=["Productos"],
+        description="Obtiene los detalles de un producto específico"
+    ),
+    destroy=extend_schema(
+        tags=["Productos"],
+        description="Elimina un producto"
+    ),
+    create=extend_schema(exclude=True),
+    update=extend_schema(exclude=True),
+    partial_update=extend_schema(exclude=True),
+)
 class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
     permission_classes = [permissions.IsAuthenticated]
-
+    http_method_names = ['get', 'delete', 'head', 'options']
     def get_serializer_class(self):
         if self.action in ['retrieve', 'list']:
             return ProductoDetailSerializer
@@ -43,7 +189,11 @@ class ProductoViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class StripeWebhookView(APIView):
+class StripeWebhookView(GenericAPIView):
+    @extend_schema(
+        tags=["Stripe Webhook"],
+        description="Procesa los eventos de webhook de Stripe"
+    )
     @csrf_exempt
     def post(self, request, *args, **kwargs):
         payload = request.body
@@ -73,6 +223,8 @@ class StripeWebhookView(APIView):
                 self.handle_product_deleted(event.data.object)
             elif event.type == 'price.deleted':
                 self.handle_price_deleted(event.data.object)
+            elif event.type == 'checkout.session.completed':
+                self.handle_checkout_session_completed(event.data.object)
             else:
                 logger.info(f"Unhandled event type: {event.type}")
                 return Response({"message": "Unhandled event type"}, status=status.HTTP_200_OK)
@@ -135,7 +287,6 @@ class StripeWebhookView(APIView):
         except Exception as e:
             logger.error(f"Error updating product: {str(e)}")
             raise
-
 
     def handle_price_created(self, stripe_price):
         try:
@@ -243,4 +394,18 @@ class StripeWebhookView(APIView):
             logger.warning(f"Price not found for deletion: {stripe_price['id']}")
         except Exception as e:
             logger.error(f"Error handling price deletion: {str(e)}")
+            raise
+
+    def handle_checkout_session_completed(self, stripe_checkout_session):
+        try:
+            pedido = Pedido.objects.get(stripe_checkout_session_id=stripe_checkout_session['id'])
+            pedido.estado = 'pagado'
+            pedido.save(update_fields=['estado'])
+            logger.info(f"Marked pedido as completed: {pedido.estado}")
+
+        except Pedido.DoesNotExist:
+            logger.warning(f"Checkout session not found: {stripe_checkout_session['id']}")
+
+        except Exception as e:
+            logger.error(f"Error handling checkout session completion: {str(e)}")
             raise

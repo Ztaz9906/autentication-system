@@ -1,6 +1,56 @@
 from rest_framework import serializers
 from authenticacion.serializers import SerializadorUsuarioLectura
 from .models import Producto, Precio, Pedido, DetallePedido
+from decimal import Decimal
+
+class ProductoEnPedidoSerializer(serializers.Serializer):
+    stripe_product_id = serializers.CharField()
+    price = serializers.CharField()
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class CreatePedidoSerializer(serializers.Serializer):
+    customer_id = serializers.CharField()
+    direccion_envio = serializers.CharField()
+    total = serializers.DecimalField(max_digits=10, decimal_places=2)
+    productos = ProductoEnPedidoSerializer(many=True)
+    success_url = serializers.URLField()
+    cancel_url = serializers.URLField()
+
+    def validate_productos(self, value):
+        for producto in value:
+            try:
+                Producto.objects.get(stripe_product_id=producto['stripe_product_id'])
+            except Producto.DoesNotExist:
+                raise serializers.ValidationError(f"Producto con ID {producto['stripe_product_id']} no existe")
+
+            try:
+                Precio.objects.get(stripe_price_id=producto['price'],
+                                   producto__stripe_product_id=producto['stripe_product_id'])
+            except Precio.DoesNotExist:
+                raise serializers.ValidationError(
+                    f"Precio con ID {producto['price']} no existe para el producto {producto['stripe_product_id']}")
+        return value
+
+    def create(self, validated_data):
+        usuario = self.context['request'].user
+        pedido = Pedido.objects.create(
+            usuario=usuario,
+            direccion_envio=validated_data['direccion_envio'],
+            total=validated_data['total'],
+            checkout_session_success_url=validated_data['success_url'],
+            checkout_session_cancel_url=validated_data['cancel_url']
+        )
+
+        for producto_data in validated_data['productos']:
+            precio = Precio.objects.get(stripe_price_id=producto_data['price'])
+            DetallePedido.objects.create(
+                pedido=pedido,
+                precio=precio,
+                cantidad=producto_data['quantity']
+            )
+
+        return pedido
 
 
 class PrecioSerializer(serializers.ModelSerializer):
@@ -41,8 +91,8 @@ class DetallePedidoSerializer(serializers.ModelSerializer):
 class PedidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pedido
-        fields = ['id', 'usuario', 'total', 'direccion_envio', 'estado', 'stripe_payment_intent_id', 'created_at',
-                  'updated_at','productos']
+        fields = ['id', 'usuario', 'total', 'direccion_envio', 'estado', 'stripe_checkout_session_id', 'created_at',
+                  'updated_at', 'productos', 'checkout_session_url']
 
 
 class PedidoDetailSerializer(serializers.ModelSerializer):
@@ -51,5 +101,77 @@ class PedidoDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Pedido
-        fields = ['id', 'usuario', 'detalles', 'total', 'direccion_envio', 'estado', 'stripe_payment_intent_id',
-                  'created_at', 'updated_at']
+        fields = ['id', 'usuario', 'detalles', 'total', 'direccion_envio', 'estado', 'stripe_checkout_session_id',
+                  'created_at', 'updated_at', 'checkout_session_url']
+
+
+class ProductoEnPedidoUpdateSerializer(serializers.Serializer):
+    stripe_product_id = serializers.CharField()
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class UpdatePedidoSerializer(serializers.ModelSerializer):
+    productos = ProductoEnPedidoUpdateSerializer(many=True, required=False)
+
+    class Meta:
+        model = Pedido
+        fields = ['direccion_envio', 'estado', 'productos']
+
+    def validate(self, data):
+        user = self.context['request'].user
+        pedido = self.instance
+
+        if not user.is_superuser and pedido.estado not in ['pendiente', 'pagado']:
+            raise serializers.ValidationError("No se puede editar este pedido en su estado actual.")
+
+        if 'estado' in data:
+            if not user.is_superuser:
+                raise serializers.ValidationError("Solo los administradores pueden cambiar el estado del pedido.")
+            if pedido.estado == 'pagado' and data['estado'] not in ['enviado', 'entregado']:
+                raise serializers.ValidationError("El estado solo puede cambiarse a 'enviado' o 'entregado'.")
+            if pedido.estado == 'enviado' and data['estado'] != 'entregado':
+                raise serializers.ValidationError("El estado solo puede cambiarse a 'entregado'.")
+
+        if 'productos' in data and pedido.estado != 'pendiente':
+            raise serializers.ValidationError("Solo se pueden modificar productos en pedidos pendientes.")
+
+        return data
+
+    def update(self, instance, validated_data):
+        productos_data = validated_data.pop('productos', None)
+
+        # Actualizar campos simples del pedido
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if productos_data:
+            self.actualizar_productos(instance, productos_data)
+
+        # Recalcular el total del pedido
+        instance.total = self.calcular_total(instance)
+        instance.save()
+        return instance
+
+    def actualizar_productos(self, pedido, productos_data):
+        for producto_data in productos_data:
+            stripe_product_id = producto_data['stripe_product_id']
+            cantidad = producto_data['quantity']
+
+            try:
+                producto = Producto.objects.get(stripe_product_id=stripe_product_id)
+                precio = producto.default_price
+            except Producto.DoesNotExist:
+                raise serializers.ValidationError(f"Producto con ID {stripe_product_id} no existe")
+
+            detalle, created = DetallePedido.objects.update_or_create(
+                pedido=pedido,
+                precio=precio,
+                defaults={'cantidad': cantidad}
+            )
+
+    def calcular_total(self, pedido):
+        return sum(
+            detalle.precio.unit_amount * detalle.cantidad
+            for detalle in pedido.detallepedido_set.all()
+        ) / 100  # Convertir de centavos a unidades monetarias
+

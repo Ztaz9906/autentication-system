@@ -13,6 +13,15 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import stripe
+from dotenv import load_dotenv
+
+# Determinar si estamos en Vercel
+IN_VERCEL = os.environ.get('VERCEL_ENV') is not None
+
+# Cargar variables de entorno solo si no estamos en Vercel
+if not IN_VERCEL:
+    ENV_FILE = '.env'
+    load_dotenv(ENV_FILE)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,11 +30,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ib20h(eg8u^ry!u+v8n&(r6w&v*bed6)f7aw7sg%h5)qa-x(y4'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-ib20h(eg8u^ry!u+v8n&(r6w&v*bed6)f7aw7sg%h5)qa-x(y4')
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True')
 
-ALLOWED_HOSTS = ['.vercel.app', '.now.sh', '127.0.0.1','*']
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', ['.vercel.app', '.now.sh', '127.0.0.1', '*']).split(',')
 
 # Application definition
 
@@ -134,16 +143,29 @@ SIMPLE_JWT = {
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',  # Nombre de la base de datos proporcionado por Supabase
-        'USER': 'postgres.qglhcroekegjvwlekwiz',  # Usuario de la base de datos proporcionado por Supabase
-        'PASSWORD': 'c0geqoMHNPzgZqTt',  # Contraseña de la base de datos proporcionada por Supabase
-        'HOST': 'aws-0-us-east-1.pooler.supabase.com',  # URL de la base de datos proporcionada por Supabase
-        'PORT': '6543',  # Puerto de conexión (por defecto para PostgreSQL)
+# Database
+if IN_VERCEL:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DATABASE'),
+            'USER': os.environ.get('POSTGRES_USER'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
+            'HOST': os.environ.get('POSTGRES_HOST'),
+            'PORT': os.environ.get('POSTGRES_PORT'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DATABASE', 'postgres'),
+            'USER': os.getenv('POSTGRES_USER', 'postgres.qglhcroekegjvwlekwiz'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'c0geqoMHNPzgZqTt'),
+            'HOST': os.getenv('POSTGRES_HOST', 'aws-0-us-east-1.pooler.supabase.com'),
+            'PORT': os.getenv('POSTGRES_PORT', '6543'),
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -199,6 +221,6 @@ MEDIA_URL = STATIC_HOST + "/media/"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Stripe
-STRIPE_SECRET_KEY = 'sk_test_51PQbzPGkiwqRm16CSYV3zip8aDpQd6HYR6xagymesVarWWOh9BiMS8PraFFI5STwxv0wwmomqxpSI2a3hG5khhLt00cboMxa7Z'
-STRIPE_WEBHOOK_SECRET = 'whsec_maFNLc45V6HVLCS013lCxHG6r8DoIWqn'
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY', 'sk_test_51PQbzPGkiwqRm16CSYV3zip8aDpQd6HYR6xagymesVarWWOh9BiMS8PraFFI5STwxv0wwmomqxpSI2a3hG5khhLt00cboMxa7Z')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', 'whsec_maFNLc45V6HVLCS013lCxHG6r8DoIWqn')
 stripe.api_key = STRIPE_SECRET_KEY

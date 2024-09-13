@@ -1,5 +1,3 @@
-from rest_framework.views import APIView
-
 from authenticacion.models import Usuario, Group
 from authenticacion.serializers import SerializadorUsuarioLectura, SerializadorDeUsuarioEscritura, SerializadorDeGrupos, SerializadorDeGruposLectura, CustomPasswordResetSerializer, LogoutSerializer, CustomLoginSerializer
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
@@ -11,10 +9,8 @@ from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
 from rest_framework.response import Response
 import stripe
-from django.conf import settings
-stripe.api_key = settings.STRIPE_SECRET_KEY
 
-print(f"Stripe API Key: {stripe.api_key}")
+
 @extend_schema_view(
     create=extend_schema(tags=["Administración"], description="Crea un grupo"),
     retrieve=extend_schema(
@@ -130,7 +126,7 @@ class CustomLoginView(LoginView):
 class CustomLogoutView(LogoutView):
     """Borra el token y la sesión asignada al usuario actual."""
 
-    ...
+    serializer_class = LogoutSerializer
 
 
 @extend_schema_view(
