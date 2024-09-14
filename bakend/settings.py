@@ -32,12 +32,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-ib20h(eg8u^ry!u+v8n&(r6w&v*bed6)f7aw7sg%h5)qa-x(y4')
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True')
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', ['.vercel.app', '.now.sh', '127.0.0.1', '*']).split(',')
+# Configuración de CORS
+ALLOWED_HOSTS: list[str] = os.getenv("ALLOWED_HOSTS", "").split(";")
+CORS_ALLOWED_ORIGINS: list[str] = os.getenv("CORS_ALLOWED_ORIGINS", "").split(";")
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -45,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
     'dj_rest_auth',
@@ -64,6 +67,7 @@ AUTH_USER_MODEL = 'authenticacion.Usuario'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -108,9 +112,15 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "SIGA API",
-    "DESCRIPTION": "Breve documentación asociada al API de SIGA.",
-    "VERSION": "0.0.1",
+    "TITLE": "EL Chuletazo API",
+    "DESCRIPTION": "Breve documentación asociada al API de EL Chuletazo.",
+    "VERSION": "1.0.0",
+    "CONTACT": {
+        "email": "elchuletazo@gmail.com",
+    },
+    'LICENSE': {
+        'name': 'Terms of Use',
+    },
     "COMPONENT_SPLIT_REQUEST": True,
     "SERVE_INCLUDE_SCHEMA": False,
     # deepLinking: true habilita la actualización de los fragmentos de url con links profundos en tags y operaciones
