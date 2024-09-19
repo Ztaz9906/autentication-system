@@ -17,6 +17,7 @@ class Usuario(auth.AbstractUser):
     """Representa un usuario."""
     email = models.EmailField(_("email address"), unique=True)
     customer_id = models.CharField(_("customer id"), blank=True, null=True, unique=True)
+    verify_email = models.BooleanField(_("verify email"), default=False)
 
     class Meta(auth.AbstractUser.Meta):
         verbose_name = "Usuario"

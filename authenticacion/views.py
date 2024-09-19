@@ -9,6 +9,10 @@ from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
 from rest_framework.response import Response
 import stripe
+from allauth.socialaccount.models import SocialAccount
+from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 @extend_schema_view(
@@ -112,16 +116,10 @@ class CustomLoginView(LoginView):
 @extend_schema_view(
     post=extend_schema(
         tags=["Autenticación"],
-        request=None,
+        request=LogoutSerializer,
         description="Confirma el borrado de la sesión del usuario actual",
     ),
-    get=extend_schema(
-        tags=["Autenticación"],
-        request=LogoutSerializer,
-        responses=None,
-        description="Confirma el proceso de borrado de la sesión del usuario actual",
-        deprecated=True,
-    ),
+    get=extend_schema(exclude=True),
 )
 class CustomLogoutView(LogoutView):
     """Borra el token y la sesión asignada al usuario actual."""
@@ -141,6 +139,8 @@ class CustomPasswordResetView(PasswordResetView):
     serializer_class = CustomPasswordResetSerializer
 
 
+User = get_user_model()
+
 @extend_schema_view(
     post=extend_schema(
         tags=["Autenticación"],
@@ -148,7 +148,83 @@ class CustomPasswordResetView(PasswordResetView):
     )
 )
 class GoogleLogin(SocialLoginView):
-    """Clase usada para la autenticacion por google"""
     adapter_class = GoogleOAuth2Adapter
-    callback_url = 'http://127.0.0.1:8000/api/google-login'
+    callback_url = 'http://localhost:3000'  # Adjust this to your frontend URL
     client_class = OAuth2Client
+
+    def post(self, request, *args, **kwargs):
+        print("Starting Google login process")
+        self.request = request
+        self.serializer = self.get_serializer(data=self.request.data)
+        if 'id_token' in self.request.data:
+            self.request.data['access_token'] = self.request.data['id_token']
+        print("Request data:", self.request.data)
+
+        self.serializer.is_valid(raise_exception=True)
+        print('Serializer validated data:', self.serializer.validated_data)
+
+        social_login = self.serializer.validated_data['user']
+        email = social_login.email
+        print('Social Login:', vars(social_login))
+        print('Email:', email)
+
+        try:
+            social_account = SocialAccount.objects.get(user=social_login, provider='google')
+            extra_data = social_account.extra_data
+
+            user = User.objects.get(email=email)
+            print(f'Existing user found: {user.id} - {user.email}')
+
+            # Update user information
+            user.first_name = extra_data.get('given_name', '')
+            user.last_name = extra_data.get('family_name', '')
+
+            if not user.verify_email and extra_data.get('email_verified', True):
+                user.verify_email = True
+                user.save()
+                print('Email verified')
+                # Create Stripe customer
+                try:
+                    print('Creating Stripe customer')
+                    stripe_customer = stripe.Customer.create(
+                        email=user.email,
+                        name=f"{user.first_name} {user.last_name}"
+                    )
+                    user.customer_id = stripe_customer.id
+                    user.save()
+                    print(f'Stripe customer created and ID saved: {stripe_customer.id}')
+                except stripe.error.StripeError as e:
+                    print(f'Error creating Stripe customer: {str(e)}')
+                    return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                user.save()
+
+        except ObjectDoesNotExist:
+            print(f'Error: Social account or user not found for email {email}')
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Generate tokens
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        print('Login successful')
+        return self.get_response(user, access_token, refresh_token)
+
+    def get_response(self, user, access_token, refresh_token):
+        data = {
+            'access': access_token,
+            'refresh': refresh_token,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'is_staff': user.is_staff,
+                'groups': list(user.groups.values_list('name', flat=True)),
+                'customer_id': user.customer_id,
+                'verify_email': user.verify_email
+            }
+        }
+        return Response(data, status=status.HTTP_200_OK)
