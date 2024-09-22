@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     'documentacion',
     'authenticacion',
+    'nomencladores.apps.NomencladoresConfig',
     'tienda'
 ]
 AUTH_USER_MODEL = 'authenticacion.Usuario'
@@ -145,13 +146,13 @@ REST_AUTH = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
-#OAuth Google
+# OAuth Google
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {

@@ -1,5 +1,7 @@
 from django.db import models
 from authenticacion.models import Usuario
+from nomencladores.models import Municipio, Provincia
+
 
 class Producto(models.Model):
     stripe_product_id = models.CharField(max_length=100, unique=True)
@@ -13,6 +15,7 @@ class Producto(models.Model):
     def __str__(self):
         return self.name
 
+
 class Precio(models.Model):
     stripe_price_id = models.CharField(max_length=100, unique=True)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='precios')
@@ -24,6 +27,20 @@ class Precio(models.Model):
     def __str__(self):
         return f"{self.producto.name} - {self.unit_amount/100} {self.currency}"
 
+
+class Destinatarios(models.Model):
+    usuario = models.ManyToManyField(Usuario)
+    nombre = models.CharField(max_length=100)
+    apellidos = models.CharField(max_length=100)
+    direccion = models.CharField(max_length=100)
+    numero_casa = models.CharField(max_length=100)
+    telefono_fijo = models.CharField(max_length=100)
+    telefono_celular = models.CharField(max_length=100)
+    ci = models.CharField(max_length=100, unique=True)
+    provincia = models.ForeignKey(Provincia, on_delete=models.DO_NOTHING, max_length=100)
+    municipio = models.ForeignKey(Municipio, on_delete=models.DO_NOTHING, max_length=100)
+
+
 class Pedido(models.Model):
     ESTADO_CHOICES = [
         ('pendiente', 'Pendiente'),
@@ -34,9 +51,9 @@ class Pedido(models.Model):
     ]
 
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    destinatario = models.OneToOneField(Destinatarios, on_delete=models.DO_NOTHING)
     productos = models.ManyToManyField(Precio, through='DetallePedido')
     total = models.DecimalField(max_digits=10, decimal_places=2)
-    direccion_envio = models.TextField()
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
     stripe_checkout_session_id = models.CharField(max_length=100, blank=True, null=True)
     checkout_session_url = models.URLField(max_length=500, blank=True, null=True)
@@ -56,3 +73,4 @@ class DetallePedido(models.Model):
 
     def __str__(self):
         return f"{self.pedido.id} - {self.precio.producto.name} x {self.cantidad}"
+

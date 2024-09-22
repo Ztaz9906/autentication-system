@@ -4,18 +4,22 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, permissions, status
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
-from .models import Pedido, Producto, Precio
+from .models import Pedido, Producto, Precio, Destinatarios
 from .serializers import (
     PedidoSerializer,
     PedidoDetailSerializer,
     ProductoSerializer,
-    ProductoDetailSerializer, CreatePedidoSerializer, UpdatePedidoSerializer,
+    ProductoDetailSerializer, CreatePedidoSerializer, UpdatePedidoSerializer, DestinatarioSerializer,
 )
 import logging
 from datetime import datetime, timedelta
 from rest_framework.decorators import action
 from django.db import transaction
 from drf_spectacular.utils import extend_schema, extend_schema_view
+from django_filters.rest_framework import DjangoFilterBackend
+from authenticacion.models import Usuario
+from django.shortcuts import get_object_or_404
+
 logger = logging.getLogger(__name__)
 
 @extend_schema_view(
@@ -82,7 +86,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
                     success_url=serializer.validated_data['success_url'],
                     cancel_url=serializer.validated_data['cancel_url'],
                     metadata={'pedido_id': pedido.id},
-                    expires_at=int((datetime.now() + timedelta(minutes=30)).timestamp())
+                    expires_at=int((datetime.now() + timedelta(minutes=60)).timestamp())
                 )
                 pedido.checkout_session_url = checkout_session.url
                 pedido.checkout_session_success_url = checkout_session.success_url
@@ -409,3 +413,60 @@ class StripeWebhookView(GenericAPIView):
         except Exception as e:
             logger.error(f"Error handling checkout session completion: {str(e)}")
             raise
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Destinatarios"],
+        description="Lista todos Destinatarios",
+    ),
+    retrieve=extend_schema(
+        tags=["Destinatarios"],
+        description="Obtiene los detalles de un Destinatario"
+    ),
+    destroy=extend_schema(
+        tags=["Destinatarios"],
+        description="Elimina un Destinatario"),
+    create=extend_schema(
+        tags=["Destinatarios"],
+        description="Crea  un Destinatario"),
+    update=extend_schema(
+        tags=["Destinatarios"],
+        description="Edita los detalles de un Destinatario"),
+
+    partial_update=extend_schema(
+        tags=["Destinatarios"],
+        description="Edita los detalles de un Destinatario"),
+)
+class DestinatarioViewSet(viewsets.ModelViewSet):
+    queryset = Destinatarios.objects.all()
+    serializer_class = DestinatarioSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["ci", 'usuario__id', 'nombre', 'apellidos']
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            return Destinatarios.objects.all()
+        else:
+            return Destinatarios.objects.filter(usuario=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        ci = request.data.get('ci')
+        usuario_id = request.data.get('usuario')[0] if isinstance(request.data.get('usuario'),
+                                                                  list) else request.data.get('usuario')
+
+        try:
+            destinatario = Destinatarios.objects.get(ci=ci)
+            # El destinatario ya existe, añadimos el nuevo usuario
+            usuario = get_object_or_404(Usuario, id=usuario_id)
+            destinatario.usuario.add(usuario)
+            serializer = self.get_serializer(destinatario)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Destinatarios.DoesNotExist:
+            # El destinatario no existe, lo creamos
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)

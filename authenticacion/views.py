@@ -153,37 +153,33 @@ class GoogleLogin(SocialLoginView):
     client_class = OAuth2Client
 
     def post(self, request, *args, **kwargs):
-        print("Starting Google login process")
+
         self.request = request
         self.serializer = self.get_serializer(data=self.request.data)
         if 'id_token' in self.request.data:
             self.request.data['access_token'] = self.request.data['id_token']
-        print("Request data:", self.request.data)
 
         self.serializer.is_valid(raise_exception=True)
-        print('Serializer validated data:', self.serializer.validated_data)
-
         social_login = self.serializer.validated_data['user']
         email = social_login.email
-        print('Social Login:', vars(social_login))
-        print('Email:', email)
 
         try:
             social_account = SocialAccount.objects.get(user=social_login, provider='google')
             extra_data = social_account.extra_data
+            email_verified = extra_data.get('email_verified', False)
+            if not email_verified:
+                print(f'Error: El email {email} no está verificado por Google')
+                return Response({"error": "El email no está verificado"}, status=status.HTTP_403_FORBIDDEN)
 
             user = User.objects.get(email=email)
-            print(f'Existing user found: {user.id} - {user.email}')
-
-            # Update user information
             user.first_name = extra_data.get('given_name', '')
             user.last_name = extra_data.get('family_name', '')
 
-            if not user.verify_email and extra_data.get('email_verified', True):
+            if not user.verify_email and email_verified:
                 user.verify_email = True
                 user.save()
                 print('Email verified')
-                # Create Stripe customer
+
                 try:
                     print('Creating Stripe customer')
                     stripe_customer = stripe.Customer.create(
@@ -200,7 +196,6 @@ class GoogleLogin(SocialLoginView):
                 user.save()
 
         except ObjectDoesNotExist:
-            print(f'Error: Social account or user not found for email {email}')
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Generate tokens

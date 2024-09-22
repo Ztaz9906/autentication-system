@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('authenticacion.urls')),
     path('api/', include('tienda.urls')),
+    path('api/', include('nomencladores.urls')),
 ]
 # Configuración para servir archivos multimedia en desarrollo
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

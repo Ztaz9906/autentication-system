@@ -1,11 +1,12 @@
 from rest_framework import routers
 from django.urls import include, path
-from .views import PedidoViewSet, ProductoViewSet, StripeWebhookView
+from .views import PedidoViewSet, ProductoViewSet, StripeWebhookView, DestinatarioViewSet
 
 # Creamos el router
 router = routers.SimpleRouter()
 router.register("pedidos", PedidoViewSet)
 router.register("productos", ProductoViewSet)
+router.register("destinatarios", DestinatarioViewSet)
 
 
 # Definimos las URLs

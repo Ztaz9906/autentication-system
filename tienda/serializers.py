@@ -1,7 +1,16 @@
 from rest_framework import serializers
 from authenticacion.serializers import SerializadorUsuarioLectura
-from .models import Producto, Precio, Pedido, DetallePedido
-from decimal import Decimal
+from .models import Producto, Precio, Pedido, DetallePedido, Destinatarios
+
+
+class DestinatarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Destinatarios
+        fields = ['direccion', 'ci', 'provincia',
+                  'apellidos', 'municipio', 'nombre',
+                  'numero_casa', 'telefono_celular',
+                  'telefono_fijo', 'usuario']
+
 
 class ProductoEnPedidoSerializer(serializers.Serializer):
     stripe_product_id = serializers.CharField()
@@ -10,8 +19,8 @@ class ProductoEnPedidoSerializer(serializers.Serializer):
 
 
 class CreatePedidoSerializer(serializers.Serializer):
+    destinatario = DestinatarioSerializer()
     customer_id = serializers.CharField()
-    direccion_envio = serializers.CharField()
     total = serializers.DecimalField(max_digits=10, decimal_places=2)
     productos = ProductoEnPedidoSerializer(many=True)
     success_url = serializers.URLField()
@@ -34,9 +43,10 @@ class CreatePedidoSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         usuario = self.context['request'].user
+
         pedido = Pedido.objects.create(
             usuario=usuario,
-            direccion_envio=validated_data['direccion_envio'],
+            destinatario=validated_data['destinatario'],
             total=validated_data['total'],
             checkout_session_success_url=validated_data['success_url'],
             checkout_session_cancel_url=validated_data['cancel_url']
@@ -91,17 +101,18 @@ class DetallePedidoSerializer(serializers.ModelSerializer):
 class PedidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pedido
-        fields = ['id', 'usuario', 'total', 'direccion_envio', 'estado', 'stripe_checkout_session_id', 'created_at',
+        fields = ['id', 'usuario', 'total', 'destinatario', 'estado', 'stripe_checkout_session_id', 'created_at',
                   'updated_at', 'productos', 'checkout_session_url']
 
 
 class PedidoDetailSerializer(serializers.ModelSerializer):
     usuario = SerializadorUsuarioLectura(read_only=True)
     detalles = DetallePedidoSerializer(source='detallepedido_set', many=True, read_only=True)
+    destinatario = DestinatarioSerializer(read_only=True)
 
     class Meta:
         model = Pedido
-        fields = ['id', 'usuario', 'detalles', 'total', 'direccion_envio', 'estado', 'stripe_checkout_session_id',
+        fields = ['id', 'usuario', 'detalles', 'total', 'destinatario', 'estado', 'stripe_checkout_session_id',
                   'created_at', 'updated_at', 'checkout_session_url']
 
 
@@ -115,7 +126,7 @@ class UpdatePedidoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Pedido
-        fields = ['direccion_envio', 'estado', 'productos']
+        fields = ['estado', 'productos']
 
     def validate(self, data):
         user = self.context['request'].user
@@ -173,5 +184,6 @@ class UpdatePedidoSerializer(serializers.ModelSerializer):
         return sum(
             detalle.precio.unit_amount * detalle.cantidad
             for detalle in pedido.detallepedido_set.all()
-        ) / 100  # Convertir de centavos a unidades monetarias
+        ) / 100
+
 
