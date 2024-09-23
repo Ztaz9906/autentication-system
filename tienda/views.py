@@ -445,24 +445,34 @@ class DestinatarioViewSet(viewsets.ModelViewSet):
     filterset_fields = ["ci", 'usuario__id', 'nombre', 'apellidos']
     permission_classes = [permissions.IsAuthenticated]
 
+    # Sobrescribimos el queryset para filtrar por usuario actual si no es superuser
     def get_queryset(self):
         if self.request.user.is_superuser:
             return Destinatarios.objects.all()
         else:
             return Destinatarios.objects.filter(usuario=self.request.user)
 
+
+    # Modificar el create para manejar tanto la creación como la actualización basada en CI
     def create(self, request, *args, **kwargs):
         ci = request.data.get('ci')
-        usuario_id = request.data.get('usuario')[0] if isinstance(request.data.get('usuario'),
-                                                                  list) else request.data.get('usuario')
+        usuario_id = request.user.id
 
         try:
+            # Intentar obtener el destinatario por su CI
             destinatario = Destinatarios.objects.get(ci=ci)
-            # El destinatario ya existe, añadimos el nuevo usuario
+
+            # El destinatario ya existe, actualizamos sus datos
+            serializer = self.get_serializer(destinatario, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+
+            # Añadimos el usuario al destinatario si no está ya
             usuario = get_object_or_404(Usuario, id=usuario_id)
             destinatario.usuario.add(usuario)
-            serializer = self.get_serializer(destinatario)
+
             return Response(serializer.data, status=status.HTTP_200_OK)
+
         except Destinatarios.DoesNotExist:
             # El destinatario no existe, lo creamos
             serializer = self.get_serializer(data=request.data)
@@ -470,3 +480,31 @@ class DestinatarioViewSet(viewsets.ModelViewSet):
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    # Modificar destroy para eliminar solo el usuario o el destinatario completo
+    def destroy(self, request, *args, **kwargs):
+        # Obtener el destinatario utilizando el user_id desde la URL
+        destinatario = self.get_object()
+
+        # Obtener el usuario_id desde los kwargs (porque está en la URL)
+        usuario_id = request.user.id
+        if not usuario_id:
+            return Response({"error": "Se requiere el ID del usuario"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Comprobar cuántos usuarios están asociados al destinatario
+        if destinatario.usuario.count() > 1:
+            # Hay más de un usuario asociado, eliminar solo el usuario que hace la solicitud
+            usuario = get_object_or_404(Usuario, id=usuario_id)
+            destinatario.usuario.remove(usuario)
+
+            return Response(
+                {"message": f"El usuario con ID {usuario_id} fue eliminado del destinatario."},
+                status=status.HTTP_204_NO_CONTENT
+            )
+        else:
+            # Solo hay un usuario asociado, eliminar el destinatario completamente
+            self.perform_destroy(destinatario)
+            return Response(
+                {"message": "El destinatario fue eliminado completamente."},
+                status=status.HTTP_204_NO_CONTENT
+            )

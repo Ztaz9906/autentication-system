@@ -18,6 +18,7 @@ class Usuario(auth.AbstractUser):
     email = models.EmailField(_("email address"), unique=True)
     customer_id = models.CharField(_("customer id"), blank=True, null=True, unique=True)
     verify_email = models.BooleanField(_("verify email"), default=False)
+    phone = models.CharField(_("phone number"), blank=True, null=True, unique=True)
 
     class Meta(auth.AbstractUser.Meta):
         verbose_name = "Usuario"

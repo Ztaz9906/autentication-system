@@ -85,7 +85,8 @@ class VistasDeUsuarios(viewsets.ModelViewSet):
             print("Intentando crear cliente en Stripe...")
             stripe_customer = stripe.Customer.create(
                 email=user.email,
-                name=f"{user.first_name} {user.last_name}"
+                name=f"{user.first_name} {user.last_name}",
+                phone=user.phone
             )
 
             # Guardar el ID del cliente de Stripe en el modelo de usuario

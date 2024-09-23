@@ -6,10 +6,10 @@ from .models import Producto, Precio, Pedido, DetallePedido, Destinatarios
 class DestinatarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Destinatarios
-        fields = ['direccion', 'ci', 'provincia',
+        fields = ['id', 'direccion', 'ci', 'provincia',
                   'apellidos', 'municipio', 'nombre',
                   'numero_casa', 'telefono_celular',
-                  'telefono_fijo', 'usuario']
+                  'telefono_fijo']
 
 
 class ProductoEnPedidoSerializer(serializers.Serializer):
