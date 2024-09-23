@@ -161,7 +161,8 @@ class SerializadorUsuarioAuth(serializers.ModelSerializer):
             "last_name",
             "is_staff",
             "groups",
-            'customer_id'
+            'customer_id',
+            'phone'
         ]
 
 
