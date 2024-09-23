@@ -220,7 +220,8 @@ class GoogleLogin(SocialLoginView):
                 'is_staff': user.is_staff,
                 'groups': list(user.groups.values_list('name', flat=True)),
                 'customer_id': user.customer_id,
-                'verify_email': user.verify_email
+                'verify_email': user.verify_email,
+                'phone': user.phone
             }
         }
         return Response(data, status=status.HTTP_200_OK)
