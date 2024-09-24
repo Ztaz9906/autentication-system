@@ -51,7 +51,7 @@ class Pedido(models.Model):
     ]
 
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
-    destinatario = models.OneToOneField(Destinatarios, on_delete=models.DO_NOTHING)
+    destinatario = models.ForeignKey(Destinatarios, on_delete=models.DO_NOTHING)
     productos = models.ManyToManyField(Precio, through='DetallePedido')
     total = models.DecimalField(max_digits=10, decimal_places=2)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
