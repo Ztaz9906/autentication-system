@@ -12,6 +12,15 @@ class DestinatarioSerializer(serializers.ModelSerializer):
                   'telefono_fijo']
 
 
+class DestinatarioSerializerLectura(serializers.ModelSerializer):
+    class Meta:
+        model = Destinatarios
+        fields = ['id', 'direccion', 'ci', 'provincia',
+                  'apellidos', 'municipio', 'nombre',
+                  'numero_casa', 'telefono_celular',
+                  'telefono_fijo','usuario']
+
+
 class ProductoEnPedidoSerializer(serializers.Serializer):
     stripe_product_id = serializers.CharField()
     price = serializers.CharField()
@@ -19,12 +28,12 @@ class ProductoEnPedidoSerializer(serializers.Serializer):
 
 
 class CreatePedidoSerializer(serializers.Serializer):
-    destinatario = DestinatarioSerializer()
-    customer_id = serializers.CharField()
+    destinatario_id = serializers.IntegerField(required=True)
+    customer_id = serializers.CharField(required=True)
     total = serializers.DecimalField(max_digits=10, decimal_places=2)
-    productos = ProductoEnPedidoSerializer(many=True)
-    success_url = serializers.URLField()
-    cancel_url = serializers.URLField()
+    productos = ProductoEnPedidoSerializer(many=True,required=True)
+    success_url = serializers.URLField(required=True)
+    cancel_url = serializers.URLField(required=True)
 
     def validate_productos(self, value):
         for producto in value:
@@ -43,10 +52,10 @@ class CreatePedidoSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         usuario = self.context['request'].user
-
+        destinatario =  Destinatarios.objects.get(id=validated_data['destinatario_id'])
         pedido = Pedido.objects.create(
             usuario=usuario,
-            destinatario=validated_data['destinatario'],
+            destinatario=destinatario,
             total=validated_data['total'],
             checkout_session_success_url=validated_data['success_url'],
             checkout_session_cancel_url=validated_data['cancel_url']

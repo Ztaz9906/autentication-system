@@ -10,6 +10,7 @@ from .serializers import (
     PedidoDetailSerializer,
     ProductoSerializer,
     ProductoDetailSerializer, CreatePedidoSerializer, UpdatePedidoSerializer, DestinatarioSerializer,
+    DestinatarioSerializerLectura,
 )
 import logging
 from datetime import datetime, timedelta
@@ -440,10 +441,14 @@ class StripeWebhookView(GenericAPIView):
 )
 class DestinatarioViewSet(viewsets.ModelViewSet):
     queryset = Destinatarios.objects.all()
-    serializer_class = DestinatarioSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["ci", 'usuario__id', 'nombre', 'apellidos']
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve' or self.action == 'list':
+            return DestinatarioSerializerLectura
+        return DestinatarioSerializer
 
     # Sobrescribimos el queryset para filtrar por usuario actual si no es superuser
     def get_queryset(self):
@@ -457,6 +462,7 @@ class DestinatarioViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         ci = request.data.get('ci')
         usuario_id = request.user.id
+        usuario = get_object_or_404(Usuario, id=usuario_id)
 
         try:
             # Intentar obtener el destinatario por su CI
@@ -468,7 +474,7 @@ class DestinatarioViewSet(viewsets.ModelViewSet):
             self.perform_update(serializer)
 
             # Añadimos el usuario al destinatario si no está ya
-            usuario = get_object_or_404(Usuario, id=usuario_id)
+
             destinatario.usuario.add(usuario)
 
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -477,6 +483,8 @@ class DestinatarioViewSet(viewsets.ModelViewSet):
             # El destinatario no existe, lo creamos
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
+            destinatario = serializer.save()
+            destinatario.usuario.add(usuario)
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)

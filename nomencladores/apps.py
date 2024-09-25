@@ -9,5 +9,5 @@ class NomencladoresConfig(AppConfig):
         import os
         from django.core.management import call_command
         # TODO:ONLY WORKS AFTER THE SECOND MIGRATE COMMENT IN THE FIRST
-        if os.environ.get('RUN_MAIN', None) != 'true':
-            call_command('populate_locations')
+        # if os.environ.get('RUN_MAIN', None) != 'true':
+        #     call_command('populate_locations')
