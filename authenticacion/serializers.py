@@ -99,7 +99,8 @@ class SerializadorUsuarioLectura(serializers.ModelSerializer):
             "is_staff",
             "groups",
             "user_permissions",
-            'customer_id'
+            'customer_id',
+            'phone'
         ]
 
 
