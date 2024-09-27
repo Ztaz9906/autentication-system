@@ -164,6 +164,7 @@ SOCIALACCOUNT_PROVIDERS = {
             'access_type': 'online',
         },
         'VERIFIED_EMAIL': True,
+        'EMAIL_AUTHENTICATION': True
     }
 }
 

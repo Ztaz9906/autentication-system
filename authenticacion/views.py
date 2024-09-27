@@ -156,9 +156,14 @@ class GoogleLogin(SocialLoginView):
     def post(self, request, *args, **kwargs):
 
         self.request = request
+
         self.serializer = self.get_serializer(data=self.request.data)
+
+
         if 'id_token' in self.request.data:
             self.request.data['access_token'] = self.request.data['id_token']
+        elif 'access_token' not in self.request.data:
+            return Response({"error": "No se proporcionó token válido"}, status=status.HTTP_400_BAD_REQUEST)
 
         self.serializer.is_valid(raise_exception=True)
         social_login = self.serializer.validated_data['user']
@@ -167,7 +172,13 @@ class GoogleLogin(SocialLoginView):
         try:
             social_account = SocialAccount.objects.get(user=social_login, provider='google')
             extra_data = social_account.extra_data
-            email_verified = extra_data.get('email_verified', False)
+            print(extra_data)
+
+            email_verified = False
+            if 'email_verified' in extra_data:
+                email_verified = extra_data.get('email_verified', False)
+            elif 'verified_email' in extra_data:
+                email_verified = extra_data.get('verified_email', False)
             if not email_verified:
                 print(f'Error: El email {email} no está verificado por Google')
                 return Response({"error": "El email no está verificado"}, status=status.HTTP_403_FORBIDDEN)
