@@ -96,12 +96,11 @@ class ProductoDetailSerializer(serializers.ModelSerializer):
 
 
 class DetallePedidoSerializer(serializers.ModelSerializer):
-    precio = PrecioSerializer(read_only=True)
     producto = serializers.SerializerMethodField()
 
     class Meta:
         model = DetallePedido
-        fields = ['id', 'precio', 'cantidad', 'producto']
+        fields = ['producto', 'cantidad']
 
     def get_producto(self, obj):
         return ProductoSerializer(obj.precio.producto).data
@@ -116,12 +115,12 @@ class PedidoSerializer(serializers.ModelSerializer):
 
 class PedidoDetailSerializer(serializers.ModelSerializer):
     usuario = SerializadorUsuarioLectura(read_only=True)
-    detalles = DetallePedidoSerializer(source='detallepedido_set', many=True, read_only=True)
+    productos = DetallePedidoSerializer(source='detallepedido_set', many=True, read_only=True)
     destinatario = DestinatarioSerializer(read_only=True)
 
     class Meta:
         model = Pedido
-        fields = ['id', 'usuario', 'detalles', 'total', 'destinatario', 'estado', 'stripe_checkout_session_id',
+        fields = ['id', 'usuario', 'productos', 'total', 'destinatario', 'estado', 'stripe_checkout_session_id',
                   'created_at', 'updated_at', 'checkout_session_url']
 
 
