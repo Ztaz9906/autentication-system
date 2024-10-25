@@ -213,7 +213,17 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# Configuracion de servidor SMTP para enviar correos
+# Django defaults to this backend, but if you'd like to be explicit:
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST','mail.smtp2go.com')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER','estudiantes.uci.cu')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD','KoxeCSdDtVLtMc8g')
+EMAIL_PORT = os.getenv('EMAIL_PORT', 587)
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL",'ztazhorde@gmail.com')
+SITE_URL = os.getenv("SITE_URL", "http://loacalhost:3000") # La URL base de tu sitio
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/

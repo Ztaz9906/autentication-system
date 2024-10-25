@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activación de Cuenta - El Chuletazo</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif;">
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 30px; text-align: center; background-color: #1f8a4d; border-radius: 8px 8px 0 0;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">¡Bienvenido a El Chuletazo!</h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <p style="color: #333333; font-size: 16px; line-height: 24px; margin: 0 0 20px;">
+                                Hola {{first_name}},
+                            </p>
+                            <p style="color: #333333; font-size: 16px; line-height: 24px; margin: 0 0 20px;">
+                                ¡Gracias por registrarte en El Chuletazo! Para comenzar a disfrutar de nuestros servicios, 
+                                necesitamos verificar tu dirección de correo electrónico.
+                            </p>
+                            <p style="color: #333333; font-size: 16px; line-height: 24px; margin: 0 0 30px;">
+                                Por favor, haz clic en el siguiente botón para activar tu cuenta:
+                            </p>
+                            <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                                <tr>
+                                    <td align="center">
+                                        <a href="{{ activation_link }}" 
+                                           style="display: inline-block; padding: 15px 30px; background-color: #1f8a4d; 
+                                                  color: #ffffff; text-decoration: none; border-radius: 5px; 
+                                                  font-size: 16px; font-weight: bold;">
+                                            Activar mi cuenta
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="color: #666666; font-size: 14px; line-height: 21px; margin: 30px 0 0;">
+                                Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:
+                            </p>
+                            <p style="color: #666666; font-size: 14px; line-height: 21px; margin: 10px 0 0; word-break: break-all;">
+                                {{ activation_link }}
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 30px; background-color: #f8f9fa; border-radius: 0 0 8px 8px;">
+                            <p style="color: #666666; font-size: 14px; line-height: 21px; margin: 0; text-align: center;">
+                                Este enlace expirará en 24 horas por razones de seguridad.
+                            </p>
+                            <p style="color: #666666; font-size: 14px; line-height: 21px; margin: 20px 0 0; text-align: center;">
+                                &copy; 2024 El Chuletazo. Todos los derechos reservados.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

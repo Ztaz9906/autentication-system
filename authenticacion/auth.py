@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.db.models import Q
+from rest_framework import exceptions
 
 
 class EmailOrUsernameModelBackend(ModelBackend):
@@ -12,5 +13,7 @@ class EmailOrUsernameModelBackend(ModelBackend):
             return None
         else:
             if user.check_password(password):
+                if not user.is_active:
+                    raise exceptions.PermissionDenied("Esta cuenta no está activa.")
                 return user
         return None
