@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from authenticacion.serializers import SerializadorUsuarioLectura
 from .models import Producto, Precio, Pedido, DetallePedido, Destinatarios
-
+from nomencladores.serializers import MunicipioSerializer, ProvinciaSerializer
 
 class DestinatarioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,6 +13,8 @@ class DestinatarioSerializer(serializers.ModelSerializer):
 
 
 class DestinatarioSerializerLectura(serializers.ModelSerializer):
+    municipio = MunicipioSerializer(read_only=True)
+    provincia = ProvinciaSerializer(read_only=True)
     class Meta:
         model = Destinatarios
         fields = ['id', 'direccion', 'ci', 'provincia',
@@ -115,7 +117,7 @@ class PedidoSerializer(serializers.ModelSerializer):
 
 class PedidoDetailSerializer(serializers.ModelSerializer):
     productos = DetallePedidoSerializer(source='detallepedido_set', many=True, read_only=True)
-    destinatario = DestinatarioSerializer(read_only=True)
+    destinatario = DestinatarioSerializerLectura(read_only=True)
 
     class Meta:
         model = Pedido

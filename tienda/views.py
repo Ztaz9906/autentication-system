@@ -58,6 +58,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
             return PedidoDetailSerializer
         elif self.action == 'partial_update':
             return UpdatePedidoSerializer
+        elif self.action == 'cancelar':
+            return 
         return PedidoSerializer
 
     def get_queryset(self):
@@ -160,6 +162,20 @@ class PedidoViewSet(viewsets.ModelViewSet):
         except stripe.error.StripeError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        tags=["Pedidos"],
+        description="Cancela un pedido pendiente"
+    )
+    @action(detail=True, methods=['patch'])
+    def cancelar(self, request, pk=None):
+        pedido = self.get_object()
+
+        if pedido.estado == 'pendiente':
+            pedido.estado = 'cancelado'
+            pedido.save(update_fields=['estado'])
+            return Response({'message': 'Pedido cancelado'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'No se puede cancelar un pedido que no está pendiente'}, status=status.HTTP_400_BAD_REQUEST)
 
 @extend_schema_view(
     list=extend_schema(
@@ -491,28 +507,32 @@ class DestinatarioViewSet(viewsets.ModelViewSet):
 
     # Modificar destroy para eliminar solo el usuario o el destinatario completo
     def destroy(self, request, *args, **kwargs):
-        # Obtener el destinatario utilizando el user_id desde la URL
         destinatario = self.get_object()
-
-        # Obtener el usuario_id desde los kwargs (porque está en la URL)
         usuario_id = request.user.id
+        
         if not usuario_id:
-            return Response({"error": "Se requiere el ID del usuario"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Se requiere el ID del usuario"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Comprobar cuántos usuarios están asociados al destinatario
         if destinatario.usuario.count() > 1:
-            # Hay más de un usuario asociado, eliminar solo el usuario que hace la solicitud
             usuario = get_object_or_404(Usuario, id=usuario_id)
             destinatario.usuario.remove(usuario)
-
+            
             return Response(
                 {"message": f"El usuario con ID {usuario_id} fue eliminado del destinatario."},
-                status=status.HTTP_204_NO_CONTENT
+                status=status.HTTP_200_OK  # Cambiado de 204 a 200
             )
         else:
-            # Solo hay un usuario asociado, eliminar el destinatario completamente
+            if Pedido.objects.filter(destinatario=destinatario).exists():
+                return Response(
+                    {"message": "No se puede eliminar el destinatario porque está asociado a uno o más pedidos."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
             self.perform_destroy(destinatario)
             return Response(
                 {"message": "El destinatario fue eliminado completamente."},
-                status=status.HTTP_204_NO_CONTENT
+                status=status.HTTP_200_OK
             )
