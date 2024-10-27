@@ -62,8 +62,17 @@ class Pedido(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['usuario', '-created_at']),
+            models.Index(fields=['estado']),
+        ]
+
     def __str__(self):
         return f"Pedido {self.id} - {self.usuario.username}"
+    
 
 
 class DetallePedido(models.Model):

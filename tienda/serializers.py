@@ -1,8 +1,7 @@
 from rest_framework import serializers
-from authenticacion.serializers import SerializadorUsuarioLectura
 from .models import Producto, Precio, Pedido, DetallePedido, Destinatarios
-from nomencladores.serializers import MunicipioSerializer, ProvinciaSerializer
-
+from nomencladores.serializers import MunicipioSerializer, ProvinciaDestinatarioSerializer
+from django.core.cache import cache
 class DestinatarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Destinatarios
@@ -14,14 +13,23 @@ class DestinatarioSerializer(serializers.ModelSerializer):
 
 class DestinatarioSerializerLectura(serializers.ModelSerializer):
     municipio = MunicipioSerializer(read_only=True)
-    provincia = ProvinciaSerializer(read_only=True)
+    provincia = ProvinciaDestinatarioSerializer(read_only=True)
     class Meta:
         model = Destinatarios
-        fields = ['id', 'direccion', 'ci', 'provincia',
+        fields = [ 'direccion', 'ci', 'provincia',
                   'apellidos', 'municipio', 'nombre',
                   'numero_casa', 'telefono_celular',
-                  'telefono_fijo','usuario']
+                  'telefono_fijo',]
+        
+class DestinatarioSerializerPedidoLectura(serializers.ModelSerializer):
+    nombre_completo = serializers.SerializerMethodField()
 
+    class Meta:
+        model = Destinatarios
+        fields = ['nombre_completo']
+    
+    def get_nombre_completo(self, obj):
+        return f"{obj.nombre} {obj.apellidos}"
 
 class ProductoEnPedidoSerializer(serializers.Serializer):
     stripe_product_id = serializers.CharField()
@@ -115,15 +123,45 @@ class PedidoSerializer(serializers.ModelSerializer):
                   'updated_at', 'productos', 'checkout_session_url']
 
 
-class PedidoDetailSerializer(serializers.ModelSerializer):
+class PedidoListSerializer(serializers.ModelSerializer):
+    destinatario = DestinatarioSerializerPedidoLectura(read_only=True)
+    
+    class Meta:
+        model = Pedido
+        fields = ['id', 'total', 'destinatario', 'estado', 'created_at']
+
+    def to_representation(self, instance):
+        # Optimizamos el cacheo por objeto individual
+        cache_key = f'pedido_detail_{instance.id}'
+        cached_data = cache.get(cache_key)
+        
+        if cached_data is not None:
+            return cached_data
+            
+        representation = super().to_representation(instance)
+        cache.set(cache_key, representation, timeout=300)  # 5 minutos
+        return representation
+    
+class PedidoRetrieveSerializer(serializers.ModelSerializer):
     productos = DetallePedidoSerializer(source='detallepedido_set', many=True, read_only=True)
     destinatario = DestinatarioSerializerLectura(read_only=True)
 
     class Meta:
         model = Pedido
-        fields = ['id', 'usuario', 'productos', 'total', 'destinatario', 'estado',
-                  'created_at', 'updated_at', 'checkout_session_url']
-
+        fields = ['productos', 'total', 'destinatario', 'estado',
+                  'created_at', 'updated_at']
+        
+    def to_representation(self, instance):
+        # Optimizamos el cacheo por objeto individual
+        cache_key = f'pedido_retrieve_{instance.id}'
+        cached_data = cache.get(cache_key)
+        
+        if cached_data is not None:
+            return cached_data
+            
+        representation = super().to_representation(instance)
+        cache.set(cache_key, representation, timeout=300)  # 5 minutos
+        return representation
 
 class ProductoEnPedidoUpdateSerializer(serializers.Serializer):
     stripe_product_id = serializers.CharField()

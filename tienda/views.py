@@ -7,7 +7,8 @@ from rest_framework.response import Response
 from .models import Pedido, Producto, Precio, Destinatarios
 from .serializers import (
     PedidoSerializer,
-    PedidoDetailSerializer,
+    PedidoListSerializer,
+    PedidoRetrieveSerializer,
     ProductoSerializer,
     ProductoDetailSerializer, CreatePedidoSerializer, UpdatePedidoSerializer, DestinatarioSerializer,
     DestinatarioSerializerLectura,
@@ -20,7 +21,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from django_filters.rest_framework import DjangoFilterBackend
 from authenticacion.models import Usuario
 from django.shortcuts import get_object_or_404
-
+from django.core.cache import cache
 logger = logging.getLogger(__name__)
 
 @extend_schema_view(
@@ -51,11 +52,19 @@ class PedidoViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
+    def get_cache_key(self, user_id):
+        return f'pedidos_list_user_{user_id}'
+    
+    def invalidate_list_cache(self, user_id):
+        cache.delete(self.get_cache_key(user_id))
+
     def get_serializer_class(self, *args, **kwargs):
         if self.action == 'create':
             return CreatePedidoSerializer
-        elif self.action == 'retrieve' or self.action == 'list':
-            return PedidoDetailSerializer
+        elif self.action == 'retrieve':
+            return PedidoRetrieveSerializer
+        elif  self.action == 'list':
+            return PedidoListSerializer
         elif self.action == 'partial_update':
             return UpdatePedidoSerializer
         elif self.action == 'cancelar':
@@ -64,10 +73,40 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser:
-            return Pedido.objects.all()
-        return Pedido.objects.filter(usuario=user)
+        # Optimizar aún más las consultas relacionadas
+        queryset = Pedido.objects.select_related(
+            'destinatario',
+            'usuario'
+        ).prefetch_related(
+            'detallepedido_set'
+        ).all()
+        
+        if not user.is_superuser:
+            queryset = queryset.filter(usuario=user)
+        
+        return queryset.order_by('-created_at')
+    
+    def list(self, request, *args, **kwargs):
+        cache_key = self.get_cache_key(request.user.id)
+        cached_data = cache.get(cache_key)
 
+        if cached_data is not None:
+            return Response(cached_data)
+
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            data = serializer.data
+            cache.set(cache_key, data, timeout=300)  # 5 minutos
+            return self.get_paginated_response(data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        data = serializer.data
+        cache.set(cache_key, data, timeout=300)
+        return Response(data)
+    
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
@@ -96,7 +135,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 pedido.checkout_session_cancel_url = checkout_session.cancel_url
                 pedido.stripe_checkout_session_id = checkout_session.id
                 pedido.save()
-
+                self.invalidate_list_cache(request.user.id)
                 return Response({
                     'checkout_url': checkout_session.url,
                     'pedido_id': pedido.id
@@ -116,7 +155,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(pedido, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-        return Response(PedidoDetailSerializer(pedido).data)
+        self.invalidate_list_cache(request.user.id)
+        return Response(UpdatePedidoSerializer(pedido).data)
 
     def perform_update(self, serializer):
         serializer.save()
@@ -155,6 +195,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 pedido.checkout_session_url = new_checkout_session.url
                 pedido.stripe_checkout_session_id = new_checkout_session.id
                 pedido.save()
+                self.invalidate_list_cache(request.user.id)
                 return Response({'checkout_url': new_checkout_session.url})
             else:
                 return Response({'error': 'La sesión de pago no está disponible'}, status=status.HTTP_400_BAD_REQUEST)
@@ -173,6 +214,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
         if pedido.estado == 'pendiente':
             pedido.estado = 'cancelado'
             pedido.save(update_fields=['estado'])
+            self.invalidate_list_cache(request.user.id)
             return Response({'message': 'Pedido cancelado'}, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'No se puede cancelar un pedido que no está pendiente'}, status=status.HTTP_400_BAD_REQUEST)

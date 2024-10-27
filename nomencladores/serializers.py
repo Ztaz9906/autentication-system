@@ -7,6 +7,10 @@ class MunicipioSerializer(serializers.ModelSerializer):
         model = Municipio
         fields = ['id', 'name']
 
+class ProvinciaDestinatarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Provincia
+        fields = ['name']
 
 class ProvinciaSerializer(serializers.ModelSerializer):
     municipios = MunicipioSerializer(many=True, read_only=True)
