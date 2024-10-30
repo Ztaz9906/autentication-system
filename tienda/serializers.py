@@ -16,7 +16,7 @@ class DestinatarioSerializerLectura(serializers.ModelSerializer):
     provincia = ProvinciaDestinatarioSerializer(read_only=True)
     class Meta:
         model = Destinatarios
-        fields = [ 'direccion', 'ci', 'provincia',
+        fields = [ 'id','direccion', 'ci', 'provincia',
                   'apellidos', 'municipio', 'nombre',
                   'numero_casa', 'telefono_celular',
                   'telefono_fijo',]
