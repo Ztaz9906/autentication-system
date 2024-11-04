@@ -129,18 +129,6 @@ class PedidoListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pedido
         fields = ['id', 'total', 'destinatario', 'estado', 'created_at']
-
-    def to_representation(self, instance):
-        # Optimizamos el cacheo por objeto individual
-        cache_key = f'pedido_detail_{instance.id}'
-        cached_data = cache.get(cache_key)
-        
-        if cached_data is not None:
-            return cached_data
-            
-        representation = super().to_representation(instance)
-        cache.set(cache_key, representation, timeout=300)  # 5 minutos
-        return representation
     
 class PedidoRetrieveSerializer(serializers.ModelSerializer):
     productos = DetallePedidoSerializer(source='detallepedido_set', many=True, read_only=True)

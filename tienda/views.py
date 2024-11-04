@@ -19,7 +19,7 @@ from rest_framework.decorators import action
 from django.db import transaction
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from django_filters.rest_framework import DjangoFilterBackend
-from authenticacion.models import Usuario
+from authenticacion.models.users import Usuario
 from django.shortcuts import get_object_or_404
 from django.core.cache import cache
 logger = logging.getLogger(__name__)
@@ -57,6 +57,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
     
     def invalidate_list_cache(self, user_id):
         cache.delete(self.get_cache_key(user_id))
+    
 
     def get_serializer_class(self, *args, **kwargs):
         if self.action == 'create':
@@ -89,7 +90,6 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         cache_key = self.get_cache_key(request.user.id)
         cached_data = cache.get(cache_key)
-
         if cached_data is not None:
             return Response(cached_data)
 

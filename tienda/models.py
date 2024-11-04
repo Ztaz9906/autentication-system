@@ -1,5 +1,5 @@
 from django.db import models
-from authenticacion.models import Usuario
+from authenticacion.models.users import Usuario
 from nomencladores.models import Municipio, Provincia
 
 
