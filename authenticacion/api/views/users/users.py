@@ -5,7 +5,8 @@ from authenticacion.api.usecases import users as usecases
 from drf_spectacular.utils import extend_schema, extend_schema_view,OpenApiExample
 from authenticacion.api.serializers.users import read , write
 from django_filters import rest_framework as filters
-
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from authenticacion.utils.permisions import IsSuperUser
 @extend_schema_view(
     create=extend_schema(tags=["Usuarios"],
                          description="Crea un usuario"),
@@ -35,13 +36,41 @@ class VistasDeUsuarios(
     """Vista principal de usuarios."""
     queryset = Usuario.objects.all()
     filter_backends = [filters.DjangoFilterBackend]
-    filterset_fields = ["groups"]
+    filterset_fields = ["groups", "is_active", "is_superuser"]
+
+    def get_permissions(self):
+        """
+        Custom permissions for different actions
+        """
+        if self.action == 'create':
+            # Allow anyone to create a user
+            return [AllowAny()]
+        elif self.action == 'list':
+            # Require authentication for listing users
+            return [IsAuthenticated()]
+        elif self.action == 'destroy':
+            # Only superusers can destroy/deactivate users
+            return [IsAuthenticated(), IsSuperUser()]
+        elif self.action in ['update', 'partial_update']:
+            # Only authenticated users can update, with additional checks in update method
+            return [IsAuthenticated()]
+        elif self.action == 'retrieve':
+            # Authenticated users can retrieve user details
+            return [IsAuthenticated()]
+        
+        # Default to no permissions if action is not specified
+        return []
+
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return read.SerializadorUsuarioLectura
         return write.SerializadorDeUsuarioEscritura
     
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            return Usuario.objects.all()
+        return Usuario.objects.filter(id=self.request.user.id)
 
     @extend_schema(
         tags=["Activación"],

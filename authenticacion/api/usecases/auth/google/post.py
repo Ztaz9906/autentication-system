@@ -31,15 +31,19 @@ class GoogleLoginUseCase:
             user=social_login, 
             provider='google'
         )
-        
+   
         if not self._verify_email(social_account):
             return Response(
                 {"error": "El email no está verificado"},
                 status=status.HTTP_403_FORBIDDEN
             )
-
+        
+        
         # Update user information
         user = self._update_user_info(social_login, social_account)
+
+       
+
         
         # Generate tokens and return response
         return self._generate_response(user)
@@ -53,28 +57,36 @@ class GoogleLoginUseCase:
 
     def _update_user_info(self, social_login, social_account):
         user = User.objects.get(email=social_login.email)
+       
         extra_data = social_account.extra_data
+        
         
         # Update user fields
         user.first_name = extra_data.get('given_name', '')
         user.last_name = extra_data.get('family_name', '')
-
+       
         # Handle email verification and Stripe customer creation
+        
         if not user.verify_email and self._verify_email(social_account):
             user.is_active = True
             user.verify_email = True
-            
+           
             try:
                 # Create Stripe customer using the service
+                
                 stripe_customer = StripeService.create_customer(user)
-                user.customer_id = stripe_customer.id
+                
+                user.customer_id = stripe_customer
             except Exception as e:
+                
                 raise Exception(f"Error creating Stripe customer: {str(e)}")
 
         user.save()
+        print('usuario actualizado')
         return user
 
     def _generate_response(self, user):
+        
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         
@@ -94,5 +106,4 @@ class GoogleLoginUseCase:
                 'phone': user.phone
             }
         }
-        
         return Response(response_data, status=status.HTTP_200_OK)

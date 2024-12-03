@@ -201,6 +201,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'La sesión de pago no está disponible'}, status=status.HTTP_400_BAD_REQUEST)
 
         except stripe.error.StripeError as e:
+            print(e)
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(
@@ -238,8 +239,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
 )
 class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
-    http_method_names = ['get', 'delete', 'head', 'options']
+    http_method_names = ['get', 'head', 'options']
+
     def get_serializer_class(self):
         if self.action in ['retrieve', 'list']:
             return ProductoDetailSerializer
@@ -385,7 +386,6 @@ class StripeWebhookView(GenericAPIView):
             logger.error(f"Error creating price: {str(e)}")
             raise
 
-
     def handle_price_updated(self, stripe_price):
         try:
             precio = Precio.objects.get(stripe_price_id=stripe_price['id'])
@@ -461,6 +461,7 @@ class StripeWebhookView(GenericAPIView):
 
     def handle_checkout_session_completed(self, stripe_checkout_session):
         try:
+            
             pedido = Pedido.objects.get(stripe_checkout_session_id=stripe_checkout_session['id'])
             pedido.estado = 'pagado'
             pedido.save(update_fields=['estado'])
@@ -470,6 +471,7 @@ class StripeWebhookView(GenericAPIView):
             logger.warning(f"Checkout session not found: {stripe_checkout_session['id']}")
 
         except Exception as e:
+            
             logger.error(f"Error handling checkout session completion: {str(e)}")
             raise
 

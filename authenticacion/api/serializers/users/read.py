@@ -13,6 +13,7 @@ class SerializadorUsuarioLectura(serializers.ModelSerializer):
         model = Usuario
         fields = [
             "id",
+            'is_active',
             "username",
             "email",
             "first_name",

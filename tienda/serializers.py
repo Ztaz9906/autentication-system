@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Producto, Precio, Pedido, DetallePedido, Destinatarios
 from nomencladores.serializers import MunicipioSerializer, ProvinciaDestinatarioSerializer
 from django.core.cache import cache
+from authenticacion.models.users import Usuario
 class DestinatarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Destinatarios
@@ -30,6 +31,17 @@ class DestinatarioSerializerPedidoLectura(serializers.ModelSerializer):
     
     def get_nombre_completo(self, obj):
         return f"{obj.nombre} {obj.apellidos}"
+    
+class RemitenteSerializerPedidoLectura(serializers.ModelSerializer):
+    nombre_completo = serializers.SerializerMethodField()
+    email = serializers.SerializerMethodField()
+    class Meta:
+        model = Usuario
+        fields = ['nombre_completo', 'email']
+    def get_email(self, obj):
+        return obj.email
+    def get_nombre_completo(self, obj):
+        return f"{obj.first_name} {obj.last_name}"
 
 class ProductoEnPedidoSerializer(serializers.Serializer):
     stripe_product_id = serializers.CharField()
@@ -124,11 +136,13 @@ class PedidoSerializer(serializers.ModelSerializer):
 
 
 class PedidoListSerializer(serializers.ModelSerializer):
+
     destinatario = DestinatarioSerializerPedidoLectura(read_only=True)
-    
+
+    usuario = RemitenteSerializerPedidoLectura(read_only=True)
     class Meta:
         model = Pedido
-        fields = ['id', 'total', 'destinatario', 'estado', 'created_at']
+        fields = ['id', 'total', 'destinatario', 'estado', 'created_at','usuario']
     
 class PedidoRetrieveSerializer(serializers.ModelSerializer):
     productos = DetallePedidoSerializer(source='detallepedido_set', many=True, read_only=True)

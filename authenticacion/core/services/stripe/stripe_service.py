@@ -10,7 +10,7 @@ class StripeService:
                 name=f"{user.first_name} {user.last_name}",
                 phone=user.phone
             )
-            print('Usuario Stripe',customer.id)
+            
             return customer.id
         except stripe.error.StripeError as e:
             raise StripeError(str(e))
