@@ -24,10 +24,10 @@ class DestinatarioSerializerLectura(serializers.ModelSerializer):
         
 class DestinatarioSerializerPedidoLectura(serializers.ModelSerializer):
     nombre_completo = serializers.SerializerMethodField()
-
+    provincia = ProvinciaDestinatarioSerializer(read_only=True)
     class Meta:
         model = Destinatarios
-        fields = ['nombre_completo']
+        fields = ['nombre_completo','provincia']
     
     def get_nombre_completo(self, obj):
         return f"{obj.nombre} {obj.apellidos}"
