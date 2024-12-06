@@ -8,6 +8,8 @@ class UpdateUsuario(mixins.UpdateModelMixin):
 
     def update(self, request, *args, **kwargs):
         user = request.user
-        if not user.is_superuser and user.id != kwargs['pk']:
+        pk = int(kwargs['pk'])  # Convierte pk a entero
+        if not user.is_superuser and user.id != pk:
             raise PermissionDenied("No tienes permiso para editar este usuario.")
         return super().update(request, *args, **kwargs)
+        
