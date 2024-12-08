@@ -11,7 +11,7 @@ from .serializers import (
     PedidoRetrieveSerializer,
     ProductoSerializer,
     ProductoDetailSerializer, CreatePedidoSerializer, UpdatePedidoSerializer, DestinatarioSerializer,
-    DestinatarioSerializerLectura,
+    DestinatarioSerializerLectura,UpdatePedidoEstadoSerializer
 )
 import logging
 from datetime import datetime, timedelta
@@ -68,6 +68,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
             return PedidoListSerializer
         elif self.action == 'partial_update':
             return UpdatePedidoSerializer
+        elif self.action == 'update_status':
+            return UpdatePedidoEstadoSerializer
         elif self.action == 'cancelar':
             return 
         return PedidoSerializer
@@ -160,6 +162,19 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save()
+
+    @extend_schema(
+        tags=["Pedidos"],
+        description="Cambia el estado de un pedido uso solo para usuarios permitidos"
+    )
+    @action(detail=True, methods=['patch'])
+    def update_status(self, request, *args, **kwargs):
+        pedido = self.get_object()
+        serializer = self.get_serializer(pedido, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        self.invalidate_list_cache(request.user.id)
+        return Response(UpdatePedidoEstadoSerializer(pedido).data)
 
     @extend_schema(
         tags=["Pedidos"],

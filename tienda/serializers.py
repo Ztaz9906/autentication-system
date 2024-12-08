@@ -236,3 +236,33 @@ class UpdatePedidoSerializer(serializers.ModelSerializer):
         ) / 100
 
 
+class UpdatePedidoEstadoSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Pedido
+        fields = ['estado']
+
+    def validate(self, data):
+        user = self.context['request'].user
+        pedido = self.instance
+ 
+        if 'estado' in data:
+            if not user.is_superuser:
+                raise serializers.ValidationError("Solo los administradores pueden cambiar el estado del pedido.")
+            if pedido.estado == 'pagado' and data['estado'] != 'enviado' :
+                raise serializers.ValidationError("El estado solo puede cambiarse a 'enviado'.")
+            if pedido.estado == 'enviado' and data['estado'] != 'entregado':
+                raise serializers.ValidationError("El estado solo puede cambiarse a 'entregado'.")
+            if pedido.estado not in ['pagado', 'enviado']:
+                raise serializers.ValidationError("El estado solo puede cambiarse si el pedido está en 'pagado' o 'enviado'.")
+        return data
+
+    def update(self, instance, validated_data):
+   
+        # Actualizar campos simples del pedido
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
+
