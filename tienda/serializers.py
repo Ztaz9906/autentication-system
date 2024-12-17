@@ -105,7 +105,7 @@ class ProductoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Producto
-        fields = ['id', 'stripe_product_id', 'name', 'description', 'active', 'metadata', 'default_price', 'image']
+        fields = ['id', 'stripe_product_id', 'name', 'description', 'active', 'metadata', 'default_price', 'image','category']
 
 
 class ProductoDetailSerializer(serializers.ModelSerializer):
@@ -114,7 +114,7 @@ class ProductoDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Producto
-        fields = ['id', 'stripe_product_id', 'name', 'description', 'active', 'metadata', 'default_price', 'precios', 'image']
+        fields = ['id', 'stripe_product_id', 'name', 'description', 'active', 'metadata', 'default_price', 'precios', 'image','category']
 
 
 class DetallePedidoSerializer(serializers.ModelSerializer):

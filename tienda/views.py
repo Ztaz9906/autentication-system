@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, permissions, status
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
-from .models import Pedido, Producto, Precio, Destinatarios
+from .models import Pedido, Producto, Precio, Destinatarios,DetallePedido
 from .serializers import (
     PedidoSerializer,
     PedidoListSerializer,
@@ -15,9 +15,12 @@ from .serializers import (
 )
 import logging
 from datetime import datetime, timedelta
+from django.utils import timezone
 from rest_framework.decorators import action
 from django.db import transaction
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from django.db.models.functions import Coalesce
+from django.db.models import Sum, Count
+from drf_spectacular.utils import extend_schema, extend_schema_view,OpenApiParameter
 from django_filters.rest_framework import DjangoFilterBackend
 from authenticacion.models.users import Usuario
 from django.shortcuts import get_object_or_404
@@ -238,7 +241,16 @@ class PedidoViewSet(viewsets.ModelViewSet):
 @extend_schema_view(
     list=extend_schema(
         tags=["Productos"],
-        description="Lista todos los productos"
+        description="Lista todos los productos",
+        parameters=[
+            OpenApiParameter(
+                name="more_sales",
+                type=bool,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Filtra los productos con más ventas en los últimos 15 días. Usa 'true' para activar el filtro."
+            )
+        ]
     ),
     retrieve=extend_schema(
         tags=["Productos"],
@@ -263,8 +275,54 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        
+        # Check if more_sales query parameter is present
+        more_sales = self.request.query_params.get('more_sales', None)
+        
+        if more_sales and more_sales.lower() == 'true':
+            # Calculate the date 15 days ago
+            fifteen_days_ago = timezone.now() - timedelta(days=15)
+            
+            # Detailed query to get sales information with dates
+            top_selling_products = (
+                DetallePedido.objects
+                .filter(pedido__created_at__gte=fifteen_days_ago)
+                .values(
+                    'precio__producto__id', 
+                    'precio__producto__name',
+                    'pedido__created_at'
+                )
+                .annotate(
+                    total_quantity=Coalesce(Sum('cantidad'), 0),
+                    total_orders=Count('pedido', distinct=True)
+                )
+                .order_by('-total_quantity')[:10]
+            )
+
+            # Log detailed information including dates
+            logger.info("Top Selling Products in Last 15 Days:")
+            for product in top_selling_products:
+                logger.info(
+                    f"Product ID: {product['precio__producto__id']}, "
+                    f"Name: {product['precio__producto__name']}, "
+                    f"Total Quantity Sold: {product['total_quantity']}, "
+                    f"Total Orders: {product['total_orders']}, "
+                    f"Purchase Dates: {product['pedido__created_at']}"
+                )
+
+            # Get the IDs of top-selling products
+            top_product_ids = [
+                product['precio__producto__id'] 
+                for product in top_selling_products
+            ]
+
+            # Filter the queryset to include only top-selling products
+            queryset = queryset.filter(id__in=top_product_ids)
+        
+        # Apply prefetch and select related for list and retrieve actions
         if self.action in ['retrieve', 'list']:
             return queryset.prefetch_related('precios').select_related('default_price')
+        
         return queryset
 
 
@@ -315,11 +373,13 @@ class StripeWebhookView(GenericAPIView):
 
     def handle_product_created(self, stripe_product):
         try:
+            metadata = stripe_product.get('metadata', {})
             producto = Producto.objects.create(
                 stripe_product_id=stripe_product['id'],
                 name=stripe_product['name'],
                 description=stripe_product.get('description', ''),
                 active=stripe_product['active'],
+                category=metadata.get('category'),
                 metadata=stripe_product.get('metadata', {}),
                 image=stripe_product.get('images', [None])[0] if stripe_product.get('images') else None
             )
@@ -330,6 +390,7 @@ class StripeWebhookView(GenericAPIView):
 
     def handle_product_updated(self, stripe_product):
         try:
+            metadata = stripe_product.get('metadata', {})
             producto = Producto.objects.get(stripe_product_id=stripe_product['id'])
             updated_fields = []
 
@@ -349,11 +410,16 @@ class StripeWebhookView(GenericAPIView):
                 producto.metadata = stripe_product.get('metadata', {})
                 updated_fields.append('metadata')
 
+            if producto.category != metadata.get('category'):
+                producto.category = metadata.get('category')
+                updated_fields.append('category')
+
             image = stripe_product.get('images', [None])[0] if stripe_product.get('images') else None
             if producto.image != image:
                 producto.image = image
                 updated_fields.append('image')
 
+            print(updated_fields)
             if updated_fields:
                 producto.save(update_fields=updated_fields)
                 logger.info(f"Updated product {producto.name}. Fields updated: {', '.join(updated_fields)}")

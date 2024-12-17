@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Provincia, Municipio
+from .models import Provincia, Municipio, Categoria
 
 
 class MunicipioSerializer(serializers.ModelSerializer):
@@ -18,3 +18,8 @@ class ProvinciaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Provincia
         fields = ['id', 'name', 'municipios']
+
+class CategoriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Categoria
+        fields = ['id', 'name']

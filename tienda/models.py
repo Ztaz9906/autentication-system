@@ -1,6 +1,6 @@
 from django.db import models
 from authenticacion.models.users import Usuario
-from nomencladores.models import Municipio, Provincia
+from nomencladores.models import Municipio, Provincia,Categoria
 
 
 class Producto(models.Model):
@@ -11,7 +11,7 @@ class Producto(models.Model):
     metadata = models.JSONField(default=dict, blank=True)
     default_price = models.ForeignKey('Precio', on_delete=models.SET_NULL, null=True, related_name='default_for_products')
     image = models.URLField(null=True, blank=True)
-
+    category = models.CharField(max_length=100)
     def __str__(self):
         return self.name
 

@@ -1,8 +1,8 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Provincia, Municipio
-from .serializers import ProvinciaSerializer, MunicipioSerializer
+from .models import Provincia, Municipio,Categoria
+from .serializers import ProvinciaSerializer, MunicipioSerializer,CategoriaSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
@@ -38,3 +38,25 @@ class ProvinciaViewSet(viewsets.ReadOnlyModelViewSet):
         municipios = Municipio.objects.filter(provincia=provincia)
         serializer = MunicipioSerializer(municipios, many=True)
         return Response(serializer.data)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Categoria"],
+        description="Lista todas los Categorias",
+    ),
+    retrieve=extend_schema(
+        tags=["Categoria"],
+        description="Obtiene los detalles de una categoria específica"
+    ),
+    destroy=extend_schema(exclude=True),
+    create=extend_schema(exclude=True),
+    update=extend_schema(exclude=True),
+    partial_update=extend_schema(exclude=True),
+)
+class CategoriaViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Categoria.objects.all()
+    serializer_class = CategoriaSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["name"]
+    http_method_names = ['get', 'head', 'options']
