@@ -4,22 +4,25 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, permissions, status
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
-from .models import Pedido, Producto, Precio, Destinatarios
+from .models import Pedido, Producto, Precio, Destinatarios,DetallePedido
 from .serializers import (
     PedidoSerializer,
     PedidoListSerializer,
     PedidoRetrieveSerializer,
     ProductoSerializer,
     ProductoDetailSerializer, CreatePedidoSerializer, UpdatePedidoSerializer, DestinatarioSerializer,
-    DestinatarioSerializerLectura,
+    DestinatarioSerializerLectura,UpdatePedidoEstadoSerializer
 )
 import logging
 from datetime import datetime, timedelta
+from django.utils import timezone
 from rest_framework.decorators import action
 from django.db import transaction
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from django.db.models.functions import Coalesce
+from django.db.models import Sum, Count
+from drf_spectacular.utils import extend_schema, extend_schema_view,OpenApiParameter
 from django_filters.rest_framework import DjangoFilterBackend
-from authenticacion.models import Usuario
+from authenticacion.models.users import Usuario
 from django.shortcuts import get_object_or_404
 from django.core.cache import cache
 logger = logging.getLogger(__name__)
@@ -57,6 +60,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
     
     def invalidate_list_cache(self, user_id):
         cache.delete(self.get_cache_key(user_id))
+    
 
     def get_serializer_class(self, *args, **kwargs):
         if self.action == 'create':
@@ -67,6 +71,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
             return PedidoListSerializer
         elif self.action == 'partial_update':
             return UpdatePedidoSerializer
+        elif self.action == 'update_status':
+            return UpdatePedidoEstadoSerializer
         elif self.action == 'cancelar':
             return 
         return PedidoSerializer
@@ -89,7 +95,6 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         cache_key = self.get_cache_key(request.user.id)
         cached_data = cache.get(cache_key)
-
         if cached_data is not None:
             return Response(cached_data)
 
@@ -163,6 +168,19 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         tags=["Pedidos"],
+        description="Cambia el estado de un pedido uso solo para usuarios permitidos"
+    )
+    @action(detail=True, methods=['patch'])
+    def update_status(self, request, *args, **kwargs):
+        pedido = self.get_object()
+        serializer = self.get_serializer(pedido, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        self.invalidate_list_cache(request.user.id)
+        return Response(UpdatePedidoEstadoSerializer(pedido).data)
+
+    @extend_schema(
+        tags=["Pedidos"],
         description="Retoma el proceso de checkout para un pedido pendiente"
     )
     @action(detail=True, methods=['get'])
@@ -201,6 +219,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'La sesión de pago no está disponible'}, status=status.HTTP_400_BAD_REQUEST)
 
         except stripe.error.StripeError as e:
+            print(e)
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(
@@ -222,7 +241,16 @@ class PedidoViewSet(viewsets.ModelViewSet):
 @extend_schema_view(
     list=extend_schema(
         tags=["Productos"],
-        description="Lista todos los productos"
+        description="Lista todos los productos",
+        parameters=[
+            OpenApiParameter(
+                name="more_sales",
+                type=bool,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Filtra los productos con más ventas en los últimos 15 días. Usa 'true' para activar el filtro."
+            )
+        ]
     ),
     retrieve=extend_schema(
         tags=["Productos"],
@@ -238,8 +266,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
 )
 class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
-    http_method_names = ['get', 'delete', 'head', 'options']
+    http_method_names = ['get', 'head', 'options']
+
     def get_serializer_class(self):
         if self.action in ['retrieve', 'list']:
             return ProductoDetailSerializer
@@ -247,8 +275,54 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        
+        # Check if more_sales query parameter is present
+        more_sales = self.request.query_params.get('more_sales', None)
+        
+        if more_sales and more_sales.lower() == 'true':
+            # Calculate the date 15 days ago
+            fifteen_days_ago = timezone.now() - timedelta(days=15)
+            
+            # Detailed query to get sales information with dates
+            top_selling_products = (
+                DetallePedido.objects
+                .filter(pedido__created_at__gte=fifteen_days_ago)
+                .values(
+                    'precio__producto__id', 
+                    'precio__producto__name',
+                    'pedido__created_at'
+                )
+                .annotate(
+                    total_quantity=Coalesce(Sum('cantidad'), 0),
+                    total_orders=Count('pedido', distinct=True)
+                )
+                .order_by('-total_quantity')[:10]
+            )
+
+            # Log detailed information including dates
+            logger.info("Top Selling Products in Last 15 Days:")
+            for product in top_selling_products:
+                logger.info(
+                    f"Product ID: {product['precio__producto__id']}, "
+                    f"Name: {product['precio__producto__name']}, "
+                    f"Total Quantity Sold: {product['total_quantity']}, "
+                    f"Total Orders: {product['total_orders']}, "
+                    f"Purchase Dates: {product['pedido__created_at']}"
+                )
+
+            # Get the IDs of top-selling products
+            top_product_ids = [
+                product['precio__producto__id'] 
+                for product in top_selling_products
+            ]
+
+            # Filter the queryset to include only top-selling products
+            queryset = queryset.filter(id__in=top_product_ids)
+        
+        # Apply prefetch and select related for list and retrieve actions
         if self.action in ['retrieve', 'list']:
             return queryset.prefetch_related('precios').select_related('default_price')
+        
         return queryset
 
 
@@ -299,11 +373,13 @@ class StripeWebhookView(GenericAPIView):
 
     def handle_product_created(self, stripe_product):
         try:
+            metadata = stripe_product.get('metadata', {})
             producto = Producto.objects.create(
                 stripe_product_id=stripe_product['id'],
                 name=stripe_product['name'],
                 description=stripe_product.get('description', ''),
                 active=stripe_product['active'],
+                category=metadata.get('category'),
                 metadata=stripe_product.get('metadata', {}),
                 image=stripe_product.get('images', [None])[0] if stripe_product.get('images') else None
             )
@@ -314,6 +390,7 @@ class StripeWebhookView(GenericAPIView):
 
     def handle_product_updated(self, stripe_product):
         try:
+            metadata = stripe_product.get('metadata', {})
             producto = Producto.objects.get(stripe_product_id=stripe_product['id'])
             updated_fields = []
 
@@ -333,11 +410,16 @@ class StripeWebhookView(GenericAPIView):
                 producto.metadata = stripe_product.get('metadata', {})
                 updated_fields.append('metadata')
 
+            if producto.category != metadata.get('category'):
+                producto.category = metadata.get('category')
+                updated_fields.append('category')
+
             image = stripe_product.get('images', [None])[0] if stripe_product.get('images') else None
             if producto.image != image:
                 producto.image = image
                 updated_fields.append('image')
 
+            print(updated_fields)
             if updated_fields:
                 producto.save(update_fields=updated_fields)
                 logger.info(f"Updated product {producto.name}. Fields updated: {', '.join(updated_fields)}")
@@ -384,7 +466,6 @@ class StripeWebhookView(GenericAPIView):
         except Exception as e:
             logger.error(f"Error creating price: {str(e)}")
             raise
-
 
     def handle_price_updated(self, stripe_price):
         try:
@@ -461,6 +542,7 @@ class StripeWebhookView(GenericAPIView):
 
     def handle_checkout_session_completed(self, stripe_checkout_session):
         try:
+            
             pedido = Pedido.objects.get(stripe_checkout_session_id=stripe_checkout_session['id'])
             pedido.estado = 'pagado'
             pedido.save(update_fields=['estado'])
@@ -470,6 +552,7 @@ class StripeWebhookView(GenericAPIView):
             logger.warning(f"Checkout session not found: {stripe_checkout_session['id']}")
 
         except Exception as e:
+            
             logger.error(f"Error handling checkout session completion: {str(e)}")
             raise
 

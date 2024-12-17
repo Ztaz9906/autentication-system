@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Producto, Precio, Pedido, DetallePedido, Destinatarios
 from nomencladores.serializers import MunicipioSerializer, ProvinciaDestinatarioSerializer
 from django.core.cache import cache
+from authenticacion.models.users import Usuario
 class DestinatarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Destinatarios
@@ -23,13 +24,24 @@ class DestinatarioSerializerLectura(serializers.ModelSerializer):
         
 class DestinatarioSerializerPedidoLectura(serializers.ModelSerializer):
     nombre_completo = serializers.SerializerMethodField()
-
+    provincia = ProvinciaDestinatarioSerializer(read_only=True)
     class Meta:
         model = Destinatarios
-        fields = ['nombre_completo']
+        fields = ['nombre_completo','provincia']
     
     def get_nombre_completo(self, obj):
         return f"{obj.nombre} {obj.apellidos}"
+    
+class RemitenteSerializerPedidoLectura(serializers.ModelSerializer):
+    nombre_completo = serializers.SerializerMethodField()
+    email = serializers.SerializerMethodField()
+    class Meta:
+        model = Usuario
+        fields = ['nombre_completo', 'email']
+    def get_email(self, obj):
+        return obj.email
+    def get_nombre_completo(self, obj):
+        return f"{obj.first_name} {obj.last_name}"
 
 class ProductoEnPedidoSerializer(serializers.Serializer):
     stripe_product_id = serializers.CharField()
@@ -93,7 +105,7 @@ class ProductoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Producto
-        fields = ['id', 'stripe_product_id', 'name', 'description', 'active', 'metadata', 'default_price', 'image']
+        fields = ['id', 'stripe_product_id', 'name', 'description', 'active', 'metadata', 'default_price', 'image','category']
 
 
 class ProductoDetailSerializer(serializers.ModelSerializer):
@@ -102,7 +114,7 @@ class ProductoDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Producto
-        fields = ['id', 'stripe_product_id', 'name', 'description', 'active', 'metadata', 'default_price', 'precios', 'image']
+        fields = ['id', 'stripe_product_id', 'name', 'description', 'active', 'metadata', 'default_price', 'precios', 'image','category']
 
 
 class DetallePedidoSerializer(serializers.ModelSerializer):
@@ -124,23 +136,13 @@ class PedidoSerializer(serializers.ModelSerializer):
 
 
 class PedidoListSerializer(serializers.ModelSerializer):
+
     destinatario = DestinatarioSerializerPedidoLectura(read_only=True)
-    
+
+    usuario = RemitenteSerializerPedidoLectura(read_only=True)
     class Meta:
         model = Pedido
-        fields = ['id', 'total', 'destinatario', 'estado', 'created_at']
-
-    def to_representation(self, instance):
-        # Optimizamos el cacheo por objeto individual
-        cache_key = f'pedido_detail_{instance.id}'
-        cached_data = cache.get(cache_key)
-        
-        if cached_data is not None:
-            return cached_data
-            
-        representation = super().to_representation(instance)
-        cache.set(cache_key, representation, timeout=300)  # 5 minutos
-        return representation
+        fields = ['id', 'total', 'destinatario', 'estado', 'created_at','usuario']
     
 class PedidoRetrieveSerializer(serializers.ModelSerializer):
     productos = DetallePedidoSerializer(source='detallepedido_set', many=True, read_only=True)
@@ -233,4 +235,34 @@ class UpdatePedidoSerializer(serializers.ModelSerializer):
             for detalle in pedido.detallepedido_set.all()
         ) / 100
 
+
+class UpdatePedidoEstadoSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Pedido
+        fields = ['estado']
+
+    def validate(self, data):
+        user = self.context['request'].user
+        pedido = self.instance
+ 
+        if 'estado' in data:
+            if not user.is_superuser:
+                raise serializers.ValidationError("Solo los administradores pueden cambiar el estado del pedido.")
+            if pedido.estado == 'pagado' and data['estado'] != 'enviado' :
+                raise serializers.ValidationError("El estado solo puede cambiarse a 'enviado'.")
+            if pedido.estado == 'enviado' and data['estado'] != 'entregado':
+                raise serializers.ValidationError("El estado solo puede cambiarse a 'entregado'.")
+            if pedido.estado not in ['pagado', 'enviado']:
+                raise serializers.ValidationError("El estado solo puede cambiarse si el pedido está en 'pagado' o 'enviado'.")
+        return data
+
+    def update(self, instance, validated_data):
+   
+        # Actualizar campos simples del pedido
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
 

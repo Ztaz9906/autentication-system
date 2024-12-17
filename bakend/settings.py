@@ -141,9 +141,13 @@ REST_AUTH = {
     'JWT_AUTH_COOKIE': "access_token",
     "JWT_AUTH_REFRESH_COOKIE": "refresh_token",
     "JWT_AUTH_HTTPONLY": False,
-    'USER_DETAILS_SERIALIZER': 'authenticacion.serializers.SerializadorUsuarioAuth',
+    'USER_DETAILS_SERIALIZER': 'authenticacion.api.serializers.users.auth.SerializadorUsuarioAuth',
     'OLD_PASSWORD_FIELD_ENABLED': True,
+    'PASSWORD_RESET_SERIALIZER': 'authenticacion.api.serializers.auth.password.reset.CustomPasswordResetSerializer'
 }
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
@@ -216,6 +220,10 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Configuracion de servidor SMTP para enviar correos
 # Django defaults to this backend, but if you'd like to be explicit:
+
+# Configuración de email para desarrollo
+#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST','mail.smtp2go.com')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER','estudiantes.uci.cu')
@@ -224,6 +232,24 @@ EMAIL_PORT = os.getenv('EMAIL_PORT', 587)
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL",'ztazhorde@gmail.com')
 SITE_URL = os.getenv("SITE_URL", "http://loacalhost:3000") # La URL base de tu sitio
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        '': {  # Root logger
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}
+
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
