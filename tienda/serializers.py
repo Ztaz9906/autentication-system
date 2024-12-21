@@ -37,7 +37,7 @@ class RemitenteSerializerPedidoLectura(serializers.ModelSerializer):
     email = serializers.SerializerMethodField()
     class Meta:
         model = Usuario
-        fields = ['nombre_completo', 'email']
+        fields = ['nombre_completo', 'email','phone','first_name','last_name']
     def get_email(self, obj):
         return obj.email
     def get_nombre_completo(self, obj):
@@ -147,11 +147,12 @@ class PedidoListSerializer(serializers.ModelSerializer):
 class PedidoRetrieveSerializer(serializers.ModelSerializer):
     productos = DetallePedidoSerializer(source='detallepedido_set', many=True, read_only=True)
     destinatario = DestinatarioSerializerLectura(read_only=True)
+    usuario = RemitenteSerializerPedidoLectura(read_only=True)
 
     class Meta:
         model = Pedido
         fields = ['productos', 'total', 'destinatario', 'estado',
-                  'created_at', 'updated_at']
+                  'created_at', 'updated_at','usuario']
         
     def to_representation(self, instance):
         # Optimizamos el cacheo por objeto individual
