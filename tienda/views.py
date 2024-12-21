@@ -20,7 +20,7 @@ from rest_framework.decorators import action
 from django.db import transaction
 from django.db.models.functions import Coalesce
 from django.db.models import Sum, Count
-from drf_spectacular.utils import extend_schema, extend_schema_view,OpenApiParameter
+from drf_spectacular.utils import extend_schema, extend_schema_view,OpenApiParameter,OpenApiResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from authenticacion.models.users import Usuario
 from django.shortcuts import get_object_or_404
@@ -165,6 +165,77 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save()
+
+    @extend_schema(
+        tags=["Pedidos"],
+        description="Obtiene los datos de los pedidos nesecarios para el PDF en una fecha específica",
+        parameters=[
+            OpenApiParameter(
+                name="fecha",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=True,
+                description="Fecha en formato YYYY-MM-DD para filtrar los pedidos"
+            )
+        ],
+        responses={
+            200: PedidoRetrieveSerializer(many=True),
+            400: OpenApiResponse(
+                description="Error en la solicitud",
+                examples={
+                    'application/json': {
+                        'error': 'Fecha es requerida' or 'Formato de fecha inválido. Use YYYY-MM-DD'
+                    }
+                }
+            ),
+            404: OpenApiResponse(
+                description="No se encontraron pedidos para la fecha proporcionada",
+                examples={
+                    'application/json': {
+                        'error': 'No se encontraron pedidos para la fecha proporcionada'
+                    }
+                }
+            )
+        }
+    )
+    @action(detail=False, methods=['get'])
+    def datos_pdf(self, request):
+        # Obtener parámetros de la solicitud
+        data = request.query_params
+        date_str = data.get('fecha')
+        if not date_str:
+            return Response(
+                {'error': 'Fecha es requerida'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar el formato de la fecha
+        try:
+            # Convertir la cadena a formato de fecha
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Filtrar pedidos por fecha y estado 'pagado'
+        pedidos = Pedido.objects.filter(
+            created_at__date=date,  # Filtra solo por la fecha, ignorando la hora
+            estado='pagado'         # Solo pedidos pagados
+        )
+        
+        # Verificar si hay resultados
+        if not pedidos.exists():
+            return Response(
+                {'error': 'No se encontraron pedidos pagados para la fecha proporcionada'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Serializar los datos
+        serializer = PedidoRetrieveSerializer(pedidos, many=True)
+        return Response(serializer.data)
+
 
     @extend_schema(
         tags=["Pedidos"],
