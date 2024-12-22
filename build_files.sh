@@ -1,5 +1,5 @@
 # build_files.sh
-python3.9 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python3.9 manage.py collectstatic --noinput
+python3.12 manage.py collectstatic --noinput
