@@ -35,8 +35,8 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-ib20h(eg8u^ry!u+v8n&(r6w&v
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 # Configuración de CORS
-#ALLOWED_HOSTS: list[str] = os.getenv("ALLOWED_HOSTS", "").split(";")
-ALLOWED_HOSTS = ['el-chuletazo-439c3c79d05b.herokuapp.com']
+ALLOWED_HOSTS: list[str] = os.getenv("ALLOWED_HOSTS", "").split(";")
+#ALLOWED_HOSTS = ['el-chuletazo-439c3c79d05b.herokuapp.com']
 CORS_ALLOWED_ORIGINS: list[str] = os.getenv("CORS_ALLOWED_ORIGINS", "").split(";")
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
