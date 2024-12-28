@@ -14,7 +14,7 @@ from pathlib import Path
 from datetime import timedelta
 import stripe
 from dotenv import load_dotenv
-
+import dj_database_url
 # Determinar si estamos en Vercel
 IN_VERCEL = os.environ.get('VERCEL_ENV') is not None
 
@@ -178,28 +178,14 @@ SOCIALACCOUNT_PROVIDERS = {
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 # Database
-if IN_VERCEL:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('POSTGRES_DATABASE'),
-            'USER': os.environ.get('POSTGRES_USER'),
-            'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
-            'HOST': os.environ.get('POSTGRES_HOST'),
-            'PORT': os.environ.get('POSTGRES_PORT'),
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('POSTGRES_DATABASE', 'postgres'),
-            'USER': os.getenv('POSTGRES_USER', 'postgres.qglhcroekegjvwlekwiz'),
-            'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'c0geqoMHNPzgZqTt'),
-            'HOST': os.getenv('POSTGRES_HOST', 'aws-0-us-east-1.pooler.supabase.com'),
-            'PORT': os.getenv('POSTGRES_PORT', '6543'),
-        }
-    }
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
+        ssl_require=True
+    )
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

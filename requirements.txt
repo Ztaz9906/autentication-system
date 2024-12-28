@@ -12,6 +12,7 @@ requests
 cryptography
 stripe
 django-cors-headers
+
 #deploy heroku
 gunicorn 
 whitenoise 
