@@ -26,6 +26,7 @@ from authenticacion.utils.permisions import IsSuperUser
     ),
 )
 class VistasDeUsuarios(
+    usecases.CreateSuperUserUseCase,
     usecases.CreateUsuario,
     usecases.DetailUsuario,
     usecases.UpdateUsuario,
@@ -44,6 +45,9 @@ class VistasDeUsuarios(
         """
         if self.action == 'create':
             # Allow anyone to create a user
+            return [AllowAny()]
+        elif self.action == 'create_superuser':
+            # Allow anyone to create a superuser by verification teoken in staff email
             return [AllowAny()]
         elif self.action == 'list':
             # Require authentication for listing users
@@ -134,3 +138,48 @@ class VistasDeUsuarios(
         """Endpoint para reenviar activación."""
         use_case = usecases.ResendActivationUseCase()
         return use_case.execute(request.data.get('email'))
+    
+    @extend_schema(
+        tags=["Superusuario"],
+        description="Crea un superusuario inactivo que requiere activación por email",
+        request=write.SerializadorDeUsuarioEscritura,
+        responses={
+            201: OpenApiExample(
+                'Creación exitosa',
+                value={
+                    "message": "Superusuario creado. Por favor revisa tu email para activarlo.",
+                    "email": "admin@example.com"
+                },
+            ),
+            400: OpenApiExample(
+                'Error de validación',
+                value={
+                    "email": ["Este campo es requerido."],
+                    "password": ["Este campo es requerido."]
+                },
+            )
+        },
+        examples=[
+            OpenApiExample(
+                'Ejemplo básico',
+                value={
+                    "email": "admin@example.com",
+                    "password": "contraseña_segura"
+                },
+            ),
+            OpenApiExample(
+                'Ejemplo completo',
+                value={
+                    "email": "admin@example.com",
+                    "password": "contraseña_segura",
+                    "first_name": "Admin",
+                    "last_name": "Principal",
+                    "phone": "123456789"
+                },
+            )
+        ]
+    )
+    @action(detail=False, methods=['post'], url_path='crear-superusuario')
+    def create_superuser(self, request):
+        use_case = usecases.CreateSuperUserUseCase()
+        return use_case.execute(request.data)

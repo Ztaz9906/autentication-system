@@ -5,7 +5,7 @@ from .delete import DeleteUsuario
 from .retrieve import DetailUsuario
 from .activate import ActivateUsuarioUseCase
 from .update import UpdateUsuario
-
+from .create_superuser import CreateSuperUserUseCase
 
 __all__ = [
     'CreateUsuario',
@@ -14,5 +14,6 @@ __all__ = [
     'UpdateUsuario',
     'DeleteUsuario',
     'ResendActivationUseCase',
-    'ActivateUsuarioUseCase'
+    'ActivateUsuarioUseCase',
+    'CreateSuperUserUseCase',
 ]

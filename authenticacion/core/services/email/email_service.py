@@ -23,3 +23,21 @@ class EmailService:
             html_message=html_message,
             fail_silently=False,
         )
+    @staticmethod
+    def send_superuser_activation_email(user, token):
+        context = {
+            'first_name': user.first_name,
+            'activation_link': f"{settings.SITE_URL}/activate/{token}/"
+        }
+        
+        html_message = render_to_string('emails/super_user_activation_link.html', context)
+        plain_message = strip_tags(html_message)
+        
+        send_mail(
+            subject='Activa tu cuenta',
+            message=plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=['staff@elchuletazo.com'],
+            html_message=html_message,
+            fail_silently=False,
+        )
