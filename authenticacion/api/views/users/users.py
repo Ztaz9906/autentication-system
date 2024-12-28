@@ -161,13 +161,6 @@ class VistasDeUsuarios(
         },
         examples=[
             OpenApiExample(
-                'Ejemplo básico',
-                value={
-                    "email": "admin@example.com",
-                    "password": "contraseña_segura"
-                },
-            ),
-            OpenApiExample(
                 'Ejemplo completo',
                 value={
                     "email": "admin@example.com",
@@ -182,4 +175,5 @@ class VistasDeUsuarios(
     @action(detail=False, methods=['post'], url_path='crear-superusuario')
     def create_superuser(self, request):
         use_case = usecases.CreateSuperUserUseCase()
-        return use_case.execute(request.data)
+        serializer_class = self.get_serializer_class()
+        return use_case.execute(request.data,serializer_class)
