@@ -162,6 +162,12 @@ SIMPLE_JWT = {
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
+         "APPS": [
+            {
+                "client_id": os.getenv('GOOGLE_CLIENT_ID'),
+                "secret": os.getenv('GOOGLE_CLIENT_SECRET'),
+            },
+        ],
         'SCOPE': [
             'profile',
             'email',
