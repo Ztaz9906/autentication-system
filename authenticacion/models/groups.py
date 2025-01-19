@@ -8,4 +8,4 @@ class Group(OriginalGroup):
     class Meta:
         proxy = True
         verbose_name = _("Grupo")
-        verbose_name_plural = _("Grupos")
+        verbose_name_plural = _("Grupo")

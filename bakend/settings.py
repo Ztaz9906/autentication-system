@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'nomencladores.apps.NomencladoresConfig',
     'tienda'
 ]
+SITE_ID = 1
 AUTH_USER_MODEL = 'authenticacion.Usuario'
 
 MIDDLEWARE = [
