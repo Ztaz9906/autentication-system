@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
     'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
@@ -162,7 +163,7 @@ SIMPLE_JWT = {
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
-         "APPS": [
+         "APP": [
             {
                 "client_id": os.getenv('GOOGLE_CLIENT_ID'),
                 "secret": os.getenv('GOOGLE_CLIENT_SECRET'),
